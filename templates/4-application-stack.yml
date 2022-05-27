@@ -1,0 +1,411 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: fruitapp-app
+  annotations:
+    openshift.io/display-name: STARTX FruitApp Application stack
+    description: >
+      Deploy all component required to deploy the fruitapp demo application in a stable version.
+    iconClass: icon-openshift
+    tags: startx,demo,applicaiton,ci,cd,cicd,fruitapp
+    openshift.io/provider-display-name: STARTX
+    openshift.io/generated-by: startx
+  labels:
+    template: fruitapp-app
+    app.kubernetes.io/name: "fruitapp-app"
+    app.kubernetes.io/managed-by: startx
+message: |-
+  Full ${APP_NAME} application stack is deployed for the ${ENV_NAME} environment.
+  Application context is configured with the following characteristics :
+
+  namespace         : ${APP_NAME}-${ENV_NAME}
+  database
+    kind            : postgresql
+    image           : openshift/postgresql:${POSTGRESQL_VERSION}
+    hostname        : db
+    port            : 5432
+    database        : ${APP_NAME}
+    user            : ${APP_NAME}-${ENV_NAME}
+    password        : ${APP_NAME}-${ENV_NAME}-password
+  frontend
+    version         : ${APP_VERSION}
+    kind            : nodejs
+    image           : frontend:${APP_VERSION}
+    hostname        : frontend
+    port            : 8080
+labels:
+  template: fruitapp-app
+  app.kubernetes.io/managed-by: startx
+objects:
+- kind: Secret
+  apiVersion: v1
+  stringData:
+    database-name: ${APP_NAME}
+    database-password: ${APP_NAME}-${ENV_NAME}-password
+    database-user: ${APP_NAME}-${ENV_NAME}
+  metadata:
+    annotations:
+      template.openshift.io/expose-database_name: '{.data[''database-name'']}'
+      template.openshift.io/expose-password: '{.data[''database-password'']}'
+      template.openshift.io/expose-username: '{.data[''database-user'']}'
+    labels:
+      app: db
+      app.kubernetes.io/component: postgresql
+      app.kubernetes.io/instance: db
+      app.kubernetes.io/name: db
+      app.kubernetes.io/part-of: ${APP_NAME}
+      startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-${ENV_NAME}
+    name: db
+  type: Opaque
+- kind: PersistentVolumeClaim
+  apiVersion: v1
+  metadata:
+    name: ${APP_NAME}-${ENV_NAME}-postgresql
+    namespace: ${APP_NAME}-${ENV_NAME}
+    labels:
+      app: db
+      app.kubernetes.io/component: postgresql
+      app.kubernetes.io/instance: db
+      app.kubernetes.io/name: db
+      app.kubernetes.io/part-of: ${APP_NAME}
+      app.openshift.io/runtime: postgresql
+      startx.fr/app: ${APP_NAME}
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: ${VOLUME_CAPACITY}
+    storageClassName: ${VOLUME_STORAGECLASS}
+    volumeMode: Filesystem
+- kind: Deployment
+  apiVersion: apps/v1
+  metadata:
+    annotations:
+      image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"postgresql:${POSTGRESQL_VERSION}","namespace":"openshift"},"fieldPath":"spec.template.spec.containers[?(@.name==\"postgresql\")].image","pause":"false"}]'
+      openshift.io/generated-by: startx
+    labels:
+      app: db
+      app.kubernetes.io/component: postgresql
+      app.kubernetes.io/instance: db
+      app.kubernetes.io/name: db
+      app.kubernetes.io/part-of: ${APP_NAME}
+      app.openshift.io/runtime: postgresql
+      app.openshift.io/runtime-version: "${POSTGRESQL_VERSION}"
+      startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-${ENV_NAME}
+    name: db
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: db
+    strategy:
+      activeDeadlineSeconds: 21600
+      recreateParams:
+        timeoutSeconds: 600
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: db
+          deploymentconfig: db
+          startx.fr/app: ${APP_NAME}
+      spec:
+        containers:
+          - env:
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: db
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: db
+            - name: POSTGRESQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  key: database-name
+                  name: db
+            image: openshift/postgresql:${POSTGRESQL_VERSION}
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+              - name: postgresql-data
+                mountPath: /var/lib/pgsql/data
+            livenessProbe:
+              exec:
+                command:
+                - /usr/libexec/check-container
+                - --live
+              failureThreshold: 3
+              initialDelaySeconds: 120
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 10
+            name: postgresql
+            ports:
+            - containerPort: 5432
+              protocol: TCP
+            readinessProbe:
+              exec:
+                command:
+                - /usr/libexec/check-container
+              failureThreshold: 3
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 1
+            resources:
+              limits:
+                cpu: 100m
+                memory: ${DB_MEMORY_LIMIT}
+              requests:
+                cpu: 50m
+                memory: 64Mi
+            securityContext:
+              capabilities: {}
+              privileged: false
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+          - name: postgresql-data
+            persistentVolumeClaim:
+              claimName: ${APP_NAME}-${ENV_NAME}-postgresql
+- kind: Deployment
+  apiVersion: apps/v1
+  metadata:
+    annotations:
+      alpha.image.policy.openshift.io/resolve-names: '*'
+      app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"db"}]'
+      app.openshift.io/vcs-ref: "${APP_VERSION}"
+      app.openshift.io/vcs-uri: https://github.com/startxfr/nodejs-rest-http-crud.git
+      image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"frontend:${APP_VERSION}","namespace":"${APP_NAME}-${ENV_NAME}"},"fieldPath":"spec.template.spec.containers[?(@.name==\"frontend\")].image","pause":"false"}]'
+      openshift.io/generated-by: startx
+    labels:
+      app: frontend
+      version: ${APP_VERSION}
+      app.kubernetes.io/component: nodejs
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/part-of: ${APP_NAME}
+      app.openshift.io/runtime: nodejs
+      startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-${ENV_NAME}
+    name: frontend-${APP_VERSION}
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: ${{APP_REPLICAS}}
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: frontend
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 25%
+      type: RollingUpdate
+    template:
+      metadata:
+        labels:
+          app: frontend
+          version: ${APP_VERSION}
+          startx.fr/app: ${APP_NAME}
+      spec:
+        containers:
+        - env:
+          - name: MY_DATABASE_SERVICE_HOST
+            value: db
+          - name: DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: db
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: db
+          - name: POSTGRESQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: db
+          image: ${APP_NAME}-${ENV_NAME}/frontend:${APP_VERSION}
+          imagePullPolicy: Always
+          name: frontend
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 7
+            timeoutSeconds: 2
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 3
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /live
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 100m
+              memory: ${APP_MEMORY_LIMIT}
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      template.openshift.io/expose-uri: postgres://{.spec.clusterIP}:{.spec.ports[?(.name=="postgresql")].port}
+    labels:
+      app: db
+      app.kubernetes.io/component: postgresql
+      app.kubernetes.io/instance: db
+      app.kubernetes.io/name: db
+      app.kubernetes.io/part-of: ${APP_NAME}
+      startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-${ENV_NAME}
+    name: db
+  spec:
+    internalTrafficPolicy: Cluster
+    ports:
+    - name: postgresql
+      port: 5432
+      protocol: TCP
+      targetPort: 5432
+    selector:
+      app: db
+    sessionAffinity: None
+    type: ClusterIP
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"db"}]'
+      app.openshift.io/vcs-ref: "${APP_VERSION}"
+      app.openshift.io/vcs-uri: https://github.com/startxfr/nodejs-rest-http-crud.git
+      openshift.io/generated-by: startx
+    labels:
+      app: frontend
+      version: ${APP_VERSION}
+      app.kubernetes.io/component: nodejs
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/part-of: ${APP_NAME}
+      app.openshift.io/runtime: nodejs
+      startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-${ENV_NAME}
+    name: frontend
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      app: frontend
+      version: ${APP_VERSION}
+    sessionAffinity: None
+    type: ClusterIP
+- kind: Route
+  apiVersion: route.openshift.io/v1
+  metadata:
+    annotations:
+      app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"db"}]'
+      openshift.io/host.generated: "true"
+    labels:
+      app: frontend
+      app.kubernetes.io/component: nodejs
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/part-of: ${APP_NAME}
+      app.openshift.io/runtime: nodejs
+      startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-${ENV_NAME}
+    name: frontend
+  spec:
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: frontend
+      weight: 100
+    wildcardPolicy: None
+parameters:
+  - name: ENV_NAME
+    displayName: Environment name
+    description: "Name of the environment. Should be preprod or prod."
+    value: preprod
+  - name: APP_NAME
+    displayName: Application name
+    description: "Name of the application. Used for namespace scope"
+    value: fruitapp
+  - name: APP_VERSION
+    displayName: Application version
+    description: "Version sequence to output from this pipeline"
+    value: v3.2.10
+  - name: APP_REPLICAS
+    displayName: Application replicas
+    description: "Number of pod replicas for the frontend service"
+    value: "2"
+  - name: POSTGRESQL_VERSION
+    displayName: PostgreSQL version
+    description: "Version of the postgresql backend. Could be 10-el7, 10-el8, 9.6-el8, 13-el8, 12-el8, 12-el7"
+    value: latest
+  - name: DB_MEMORY_LIMIT
+    displayName: Database memory limit
+    description: Maximum amount of memory the database can use.
+    value: 512Mi
+    required: true
+  - name: APP_MEMORY_LIMIT
+    displayName: Frontend memory limit
+    description: Maximum amount of memory the frontend can use.
+    value: 128Mi
+    required: true
+  - name: VOLUME_CAPACITY
+    displayName: Database storage capacity
+    description: 'Volume space provisionned for database stateful store, e.g. 512Mi, 2Gi.'
+    value: 1Gi
+    required: true
+  - name: VOLUME_STORAGECLASS
+    displayName: Database storage QOS
+    description: 'Storage class used for database store. Define the storage qos. See available storageclass. Example are startx-aws-fast-retain, startx-aws-generic-retain, gp2 or startx-aws-slow-retain'
+    value: gp2
+    required: true

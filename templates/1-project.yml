@@ -1,0 +1,143 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: fruitapp-project
+  annotations:
+    openshift.io/display-name: STARTX FruitApp demo (project)
+    description: >
+      Deploy 4 namespaces (devel, ci, preprod and prod) and credentials to 
+      authorize the ci namespace to push images to the preprod and prod namespaces
+    tags: startx,demo,application,ci,cd,cicd,fruitapp
+    openshift.io/provider-display-name: STARTX
+    openshift.io/generated-by: startx
+  labels:
+    template: fruitapp-project
+    app.kubernetes.io/name: "fruitapp-project"
+    app.kubernetes.io/managed-by: startx
+message: |-
+  Full demo environment is deployed with the following characteristics :
+
+  Developper namespace     : ${APP_NAME}-devel-${DEV_NAME}
+  Integration namespace    : ${APP_NAME}-ci
+  Pre-production namespace : ${APP_NAME}-preprod
+  Production namespace     : ${APP_NAME}-prod
+labels:
+  template: fruitapp-project
+  app.kubernetes.io/managed-by: startx
+objects:
+
+- kind: Project
+  apiVersion: project.openshift.io/v1
+  metadata:
+    name: ${APP_NAME}-devel-${DEV_NAME}
+    labels:
+      kubernetes.io/metadata.name: ${APP_NAME}-devel-${DEV_NAME}
+    annotations:
+      openshift.io/description: "${APP_NAME} ${DEV_NAME}'s developper environment"
+      openshift.io/display-name: "${APP_NAME} Dev ${DEV_NAME}"
+      openshift.io/requester: startx
+  spec: {}
+- kind: Project
+  apiVersion: project.openshift.io/v1
+  metadata:
+    name: ${APP_NAME}-ci
+    labels:
+      kubernetes.io/metadata.name: ${APP_NAME}-ci
+    annotations:
+      openshift.io/description: "${APP_NAME} integration environment"
+      openshift.io/display-name: "${APP_NAME} Integration"
+      openshift.io/requester: startx
+  spec: {}
+- kind: Project
+  apiVersion: project.openshift.io/v1
+  metadata:
+    name: ${APP_NAME}-preprod
+    labels:
+      kubernetes.io/metadata.name: ${APP_NAME}-preprod
+    annotations:
+      openshift.io/description: "${APP_NAME} pre-production environment"
+      openshift.io/display-name: "${APP_NAME} PreProd"
+      openshift.io/requester: startx
+  spec: {}
+- kind: Project
+  apiVersion: project.openshift.io/v1
+  metadata:
+    name: ${APP_NAME}-prod
+    labels:
+      kubernetes.io/metadata.name: ${APP_NAME}-prod
+    annotations:
+      openshift.io/description: "${APP_NAME} production environment"
+      openshift.io/display-name: "${APP_NAME} Prod"
+      openshift.io/requester: startx
+  spec: {}
+- kind: ImageStream
+  apiVersion: image.openshift.io/v1
+  metadata:
+    annotations:
+      openshift.io/generated-by: startx
+    labels:
+      app: frontend
+      app.kubernetes.io/component: frontend
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/part-of: fruitsapp
+      app.openshift.io/runtime: nodejs
+      startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-preprod
+    name: frontend
+  spec:
+    lookupPolicy:
+      local: false
+- kind: ImageStream
+  apiVersion: image.openshift.io/v1
+  metadata:
+    annotations:
+      openshift.io/generated-by: startx
+    labels:
+      app: frontend
+      app.kubernetes.io/component: frontend
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/part-of: fruitsapp
+      app.openshift.io/runtime: nodejs
+      startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-prod
+    name: frontend
+  spec:
+    lookupPolicy:
+      local: false
+- kind: RoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: 'ci-pipeline-pusher-role'
+    namespace: ${APP_NAME}-preprod
+  subjects:
+    - kind: ServiceAccount
+      name: pipeline
+      namespace: fruitapp-ci
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: 'system:image-pusher'
+- kind: RoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1
+  metadata:
+    name: 'ci-pipeline-pusher-role'
+    namespace: ${APP_NAME}-prod
+  subjects:
+    - kind: ServiceAccount
+      name: pipeline
+      namespace: fruitapp-ci
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: 'system:image-pusher'
+parameters:
+  - name: DEV_NAME
+    displayName: Developper name
+    description: "Name of the developper. Used for namespace scope"
+    value: christophe
+  - name: APP_NAME
+    displayName: Application name
+    description: "Name of the application. Used for namespace scope"
+    value: fruitapp

@@ -1,0 +1,1401 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: ${APP_NAME}-ci
+  annotations:
+    openshift.io/display-name: STARTX FruitApp demo (CI)
+    description: >
+      Deploy namespace and all component required to build and deploy the fruitapp demo application continious integration.
+      Namespace used should be in the form of <application_name>-ci for example ${APP_NAME}-ci
+    iconClass: icon-openshift
+    tags: startx,demo,applicaiton,ci,cd,cicd,fruitapp
+    openshift.io/provider-display-name: STARTX
+    openshift.io/generated-by: startx
+  labels:
+    template: ${APP_NAME}-ci
+    app.kubernetes.io/name: "${APP_NAME}-ci"
+    app.kubernetes.io/managed-by: startx
+message: |-
+  Integration environment for application ${APP_NAME} is started. 
+  Project context is deployed with the following characteristics :
+
+  namespace         : ${APP_NAME}-ci
+  database
+    kind            : postgresql
+    image           : openshift/postgresql:${POSTGRESQL_VERSION}
+    test hostname   : db-test
+    test port       : 5432
+    test database   : ${APP_NAME}
+    test user       : ${APP_NAME}-test
+    test password   : ${APP_NAME}-test-password
+    r7t hostname    : db-r7t
+    r7t port        : 5432
+    r7t database    : ${APP_NAME}
+    r7t user        : ${APP_NAME}-r7t
+    r7t password    : ${APP_NAME}-r7t-password
+  frontend
+    kind            : nodejs
+    image           : openshift/nodejs:${NODEJS_VERSION}
+    test hostname   : frontend-test
+    test port       : 8080
+    r7t hostname    : frontend-r7t
+    r7t port        : 8080
+  pipeline
+    name            : ${APP_NAME}-ci
+    run             : ${APP_NAME}-ci-firstrun
+labels:
+  template: ${APP_NAME}-ci
+  app.kubernetes.io/managed-by: startx
+objects:
+- kind: Secret
+  apiVersion: v1
+  stringData:
+    database-name: ${APP_NAME}
+    database-password: ${APP_NAME}-test-password
+    database-user: ${APP_NAME}-test
+  metadata:
+    annotations:
+      template.openshift.io/expose-database_name: '{.data[''database-name'']}'
+      template.openshift.io/expose-password: '{.data[''database-password'']}'
+      template.openshift.io/expose-username: '{.data[''database-user'']}'
+    labels:
+      app: db-test
+      version: ${POSTGRESQL_VERSION}
+      app.kubernetes.io/component: postgresql
+      app.kubernetes.io/instance: db
+      app.kubernetes.io/name: db-test
+      app.kubernetes.io/part-of: ${APP_NAME}-test
+      app.openshift.io/runtime: postgresql
+      app.openshift.io/runtime-version: "${POSTGRESQL_VERSION}"
+      startx.fr/app: ${APP_NAME}
+    name: db-test
+  type: Opaque
+- kind: Secret
+  apiVersion: v1
+  stringData:
+    database-name: ${APP_NAME}
+    database-password: ${APP_NAME}-r7t-password
+    database-user: ${APP_NAME}-r7t
+  metadata:
+    annotations:
+      template.openshift.io/expose-database_name: '{.data[''database-name'']}'
+      template.openshift.io/expose-password: '{.data[''database-password'']}'
+      template.openshift.io/expose-username: '{.data[''database-user'']}'
+    labels:
+      app: db-r7t
+      version: ${POSTGRESQL_VERSION}
+      app.kubernetes.io/component: postgresql
+      app.kubernetes.io/instance: db
+      app.kubernetes.io/name: db-r7t
+      app.kubernetes.io/part-of: ${APP_NAME}-r7t
+      app.openshift.io/runtime: postgresql
+      app.openshift.io/runtime-version: "${POSTGRESQL_VERSION}"
+      startx.fr/app: ${APP_NAME}
+    name: db-r7t
+  type: Opaque
+- kind: Secret
+  apiVersion: v1
+  metadata:
+    name: github-credentials
+    labels:
+      app: ci
+      app.kubernetes.io/component: ci
+      app.kubernetes.io/instance: ci
+      app.kubernetes.io/name: github-credentials-secret
+      app.kubernetes.io/part-of: ${APP_NAME}-ci
+      startx.fr/app: ${APP_NAME}
+  stringData:
+    GITHUB_TOKEN: ${GITHUB_TOKEN}
+    protocol: https
+    host: github.com
+    username: ${GITHUB_USERNAME}
+    password: ${GITHUB_TOKEN}
+    .gitconfig: |
+      protocol=https
+      [user]
+        name = Christophe LARUE
+        email = ${GITHUB_EMAIL}
+      [pull]
+              rebase = false
+      [http]
+              postBuffer = 524288000
+      [https]
+              postBuffer = 524288000
+      [ssh]
+              postBuffer = 524288000
+    .git-credentials: |
+      protocol=https
+      host=github.com
+      username=${GITHUB_USERNAME}
+      password=${GITHUB_TOKEN}
+  type: Opaque
+- kind: Deployment
+  apiVersion: apps/v1
+  metadata:
+    annotations:
+      image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"postgresql:${POSTGRESQL_VERSION}","namespace":"openshift"},"fieldPath":"spec.template.spec.containers[?(@.name==\"postgresql\")].image","pause":"false"}]'
+      openshift.io/generated-by: startx
+    labels:
+      app: db-test
+      app.kubernetes.io/component: postgresql
+      app.kubernetes.io/instance: db-test
+      app.kubernetes.io/name: db-test
+      app.kubernetes.io/part-of: ${APP_NAME}-test
+      app.openshift.io/runtime: postgresql
+      app.openshift.io/runtime-version: "${POSTGRESQL_VERSION}"
+      startx.fr/app: ${APP_NAME}
+    name: db-test
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: db-test
+    strategy:
+      activeDeadlineSeconds: 21600
+      recreateParams:
+        timeoutSeconds: 600
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: db-test
+          deploymentconfig: db-test
+          startx.fr/app: ${APP_NAME}
+      spec:
+        containers:
+          - env:
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: db-test
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: db-test
+            - name: POSTGRESQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  key: database-name
+                  name: db-test
+            image: openshift/postgresql:${POSTGRESQL_VERSION}
+            imagePullPolicy: IfNotPresent
+            livenessProbe:
+              exec:
+                command:
+                - /usr/libexec/check-container
+                - --live
+              failureThreshold: 3
+              initialDelaySeconds: 120
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 10
+            name: postgresql
+            ports:
+            - containerPort: 5432
+              protocol: TCP
+            readinessProbe:
+              exec:
+                command:
+                - /usr/libexec/check-container
+              failureThreshold: 3
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 1
+            resources:
+              limits:
+                cpu: 100m
+                memory: 256Mi
+              requests:
+                cpu: 50m
+                memory: 64Mi
+            securityContext:
+              capabilities: {}
+              privileged: false
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+            - mountPath: /var/lib/pgsql/data
+              name: db-test-data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - emptyDir: {}
+          name: db-test-data
+- kind: Deployment
+  apiVersion: apps/v1
+  metadata:
+    annotations:
+      alpha.image.policy.openshift.io/resolve-names: '*'
+      app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"db-test"}]'
+      app.openshift.io/vcs-ref: "devel"
+      app.openshift.io/vcs-uri: https://github.com/startxfr/nodejs-rest-http-crud.git
+      image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"frontend:test","namespace":"${APP_NAME}-ci"},"fieldPath":"spec.template.spec.containers[?(@.name==\"frontend\")].image","pause":"false"}]'
+      openshift.io/generated-by: startx
+    labels:
+      app: frontend-test
+      version: "${APP_VERSION}"
+      app.kubernetes.io/component: ${APP_NAME}
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend-test
+      app.kubernetes.io/part-of: ${APP_NAME}-test
+      app.openshift.io/runtime: nodejs
+      app.openshift.io/runtime-version: "${NODEJS_VERSION}"
+      startx.fr/app: ${APP_NAME}
+    name: frontend-test
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: frontend-test
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 25%
+      type: RollingUpdate
+    template:
+      metadata:
+        labels:
+          app: frontend-test
+          startx.fr/app: ${APP_NAME}
+      spec:
+        containers:
+        - env:
+          - name: MY_DATABASE_SERVICE_HOST
+            value: db-test
+          - name: DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: db-test
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: db-test
+          - name: POSTGRESQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: db-test
+          image: ${APP_NAME}-ci/frontend:test
+          imagePullPolicy: Always
+          name: frontend
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 7
+            timeoutSeconds: 2
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 3
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /live
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+- kind: Deployment
+  apiVersion: apps/v1
+  metadata:
+    annotations:
+      image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"postgresql:${POSTGRESQL_VERSION}","namespace":"openshift"},"fieldPath":"spec.template.spec.containers[?(@.name==\"postgresql\")].image","pause":"false"}]'
+      openshift.io/generated-by: startx
+    labels:
+      app: db-r7t
+      app.kubernetes.io/component: postgresql
+      app.kubernetes.io/instance: db-r7t
+      app.kubernetes.io/name: db-r7t
+      app.kubernetes.io/part-of: ${APP_NAME}-r7t
+      app.openshift.io/runtime: postgresql
+      app.openshift.io/runtime-version: "${POSTGRESQL_VERSION}"
+      startx.fr/app: ${APP_NAME}
+    name: db-r7t
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: db-r7t
+    strategy:
+      activeDeadlineSeconds: 21600
+      recreateParams:
+        timeoutSeconds: 600
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: db-r7t
+          deploymentconfig: db-r7t
+          startx.fr/app: ${APP_NAME}
+      spec:
+        containers:
+          - env:
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: db-r7t
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: db-r7t
+            - name: POSTGRESQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  key: database-name
+                  name: db-r7t
+            image: openshift/postgresql:${POSTGRESQL_VERSION}
+            imagePullPolicy: IfNotPresent
+            livenessProbe:
+              exec:
+                command:
+                - /usr/libexec/check-container
+                - --live
+              failureThreshold: 3
+              initialDelaySeconds: 120
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 10
+            name: postgresql
+            ports:
+            - containerPort: 5432
+              protocol: TCP
+            readinessProbe:
+              exec:
+                command:
+                - /usr/libexec/check-container
+              failureThreshold: 3
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 1
+            resources:
+              limits:
+                cpu: 100m
+                memory: 256Mi
+              requests:
+                cpu: 50m
+                memory: 64Mi
+            securityContext:
+              capabilities: {}
+              privileged: false
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+            - mountPath: /var/lib/pgsql/data
+              name: db-r7t-data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - emptyDir: {}
+          name: db-r7t-data
+- kind: Deployment
+  apiVersion: apps/v1
+  metadata:
+    annotations:
+      alpha.image.policy.openshift.io/resolve-names: '*'
+      app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"db-r7t"}]'
+      app.openshift.io/vcs-ref: "devel"
+      app.openshift.io/vcs-uri: https://github.com/startxfr/nodejs-rest-http-crud.git
+      image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"frontend:stable","namespace":"${APP_NAME}-ci"},"fieldPath":"spec.template.spec.containers[?(@.name==\"frontend\")].image","pause":"false"}]'
+      openshift.io/generated-by: startx
+    labels:
+      app: frontend-r7t
+      version: "${APP_VERSION}"
+      app.kubernetes.io/component: ${APP_NAME}
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend-r7t
+      app.kubernetes.io/part-of: ${APP_NAME}-r7t
+      app.openshift.io/runtime: nodejs
+      app.openshift.io/runtime-version: "${NODEJS_VERSION}"
+      startx.fr/app: ${APP_NAME}
+    name: frontend-r7t
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 2
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: frontend-r7t
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 25%
+      type: RollingUpdate
+    template:
+      metadata:
+        labels:
+          app: frontend-r7t
+          startx.fr/app: ${APP_NAME}
+      spec:
+        containers:
+        - env:
+          - name: MY_DATABASE_SERVICE_HOST
+            value: db-r7t
+          - name: DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: db-r7t
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: db-r7t
+          - name: POSTGRESQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: db-r7t
+          image: image-registry.openshift-image-registry.svc:5000/${APP_NAME}-ci/frontend:stable
+          imagePullPolicy: Always
+          name: frontend
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 7
+            timeoutSeconds: 2
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 3
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /live
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      template.openshift.io/expose-uri: postgres://{.spec.clusterIP}:{.spec.ports[?(.name=="postgresql")].port}
+    name: db-test
+  spec:
+    internalTrafficPolicy: Cluster
+    ports:
+    - name: postgresql
+      port: 5432
+      protocol: TCP
+      targetPort: 5432
+    selector:
+      app: db-test
+    sessionAffinity: None
+    type: ClusterIP
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"db-test"}]'
+      app.openshift.io/vcs-ref: "devel"
+      app.openshift.io/vcs-uri: https://github.com/startxfr/nodejs-rest-http-crud.git
+      openshift.io/generated-by: startx
+    labels:
+      app: frontend-test
+      version: "${APP_VERSION}"
+      app.kubernetes.io/component: ${APP_NAME}
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend-test
+      app.kubernetes.io/part-of: ${APP_NAME}-test
+      startx.fr/app: ${APP_NAME}
+    name: frontend-test
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      app: frontend-test
+    sessionAffinity: None
+    type: ClusterIP
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      template.openshift.io/expose-uri: postgres://{.spec.clusterIP}:{.spec.ports[?(.name=="postgresql")].port}
+    name: db-r7t
+  spec:
+    internalTrafficPolicy: Cluster
+    ports:
+    - name: postgresql
+      port: 5432
+      protocol: TCP
+      targetPort: 5432
+    selector:
+      app: db-r7t
+    sessionAffinity: None
+    type: ClusterIP
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"db-r7t"}]'
+      app.openshift.io/vcs-ref: "devel"
+      app.openshift.io/vcs-uri: https://github.com/startxfr/nodejs-rest-http-crud.git
+      openshift.io/generated-by: startx
+    labels:
+      app: frontend-r7t
+      version: "${APP_VERSION}"
+      app.kubernetes.io/component: ${APP_NAME}
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend-r7t
+      app.kubernetes.io/part-of: ${APP_NAME}-r7t
+      startx.fr/app: ${APP_NAME}
+    name: frontend-r7t
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      app: frontend-r7t
+    sessionAffinity: None
+    type: ClusterIP
+- kind: ImageStream
+  apiVersion: image.openshift.io/v1
+  metadata:
+    annotations:
+      app.openshift.io/vcs-ref: "devel"
+      app.openshift.io/vcs-uri: https://github.com/startxfr/nodejs-rest-http-crud.git
+      openshift.io/generated-by: startx
+    labels:
+      app: frontend
+      app.kubernetes.io/component: ci
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/part-of: ${APP_NAME}
+      app.openshift.io/runtime: nodejs
+      app.openshift.io/runtime-version: "${NODEJS_VERSION}"
+      startx.fr/app: ${APP_NAME}
+    name: frontend
+  spec:
+    lookupPolicy:
+      local: false
+- kind: Task
+  apiVersion: tekton.dev/v1beta1
+  metadata:
+    annotations:
+      openshift.io/installed-from: tektonhub
+      tekton.dev/categories: Git
+      tekton.dev/displayName: create github release
+      tekton.dev/pipelines.minVersion: 0.12.1
+      tekton.dev/platforms: linux/amd64
+      tekton.dev/tags: github
+    name: create-github-release
+    labels:
+      app: ci
+      app.kubernetes.io/component: ci
+      app.kubernetes.io/instance: ci
+      app.kubernetes.io/name: create-github-release
+      app.kubernetes.io/part-of: ${APP_NAME}
+      app.kubernetes.io/version: '0.1'
+  spec:
+    description: >-
+      This `task` can be used to make a github release.
+
+      It is typical to create a Github tag at the moment of release to introduce a
+      checkpoint in your source code history,but in most cases users will need
+      compiled objects or other assets output, not just the raw source code.Github
+      Releases are a way to track deliverables in your project. Consider them a
+      snapshot in time of the source, build output, artifacts, and other metadata
+      associated with a released version of your code.
+    params:
+      - description: A git tag that will be created with this release (e.g. v1.0.0)
+        name: TAG
+        type: string
+      - default: master
+        description: 'Git revision to create a release from (branch, tag, sha, ref…).'
+        name: REVISION
+        type: string
+      - default: release.md
+        description: Name of the file that has to be uploaded as release notes.
+        name: RELEASE_FILE_NAME
+        type: string
+      - default: github-credentials
+        description: Name of the secret holding the github-credentials.
+        name: GITHUB_TOKEN_SECRET
+        type: string
+      - default: GITHUB_TOKEN
+        description: Name of the secret key holding the github-credentials.
+        name: GITHUB_TOKEN_SECRET_KEY
+        type: string
+    steps:
+      - env:
+          - name: GITHUB_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: $(params.GITHUB_TOKEN_SECRET_KEY)
+                name: $(params.GITHUB_TOKEN_SECRET)
+        image: "quay.io/diagrawa/github-hub:latest"
+        name: create-release
+        resources: {}
+        script: |
+          #!/usr/bin/env bash
+          set -ex
+
+          # Appending command to upload multiple release assets.
+
+          UPLOAD_ASSET=$(workspaces.input.path)/*
+          cmd=""
+          # for file in $UPLOAD_ASSET
+          # do
+          #   cmd="$cmd\
+          #     --attach $file"
+          # done
+
+          # Create a release
+          echo "Creating release $(params.TAG)"
+
+          hub release create \
+            --commitish $(params.REVISION) \
+            --file $(workspaces.release-notes.path)/$(params.RELEASE_FILE_NAME) \
+            $cmd \
+            $(params.TAG)
+        workingDir: $(workspaces.source.path)
+    workspaces:
+      - name: input
+      - name: source
+      - name: release-notes
+- kind: Task
+  apiVersion: tekton.dev/v1beta1
+  metadata:
+    name: git-startx-merge
+    labels:
+      app: ci
+      app.kubernetes.io/component: ci
+      app.kubernetes.io/instance: ci
+      app.kubernetes.io/name: git-startx-merge
+      app.kubernetes.io/part-of: ${APP_NAME}
+      app.kubernetes.io/version: '0.1'
+    annotations:
+      tekton.dev/pipelines.minVersion: "0.12.1"
+      tekton.dev/categories: Git
+      tekton.dev/tags: git
+      tekton.dev/displayName: "git batch merge"
+      tekton.dev/platforms: "linux/amd64"
+  spec:
+    description: >-
+      This task takes a set of refspecs, fetches them and performs git operations
+      (cherry-pick or merge) to apply them in order on the given base revision (default master).
+      The resulting commit SHA will not match across taskruns, but the git tree SHA should
+      match. This can be useful for batch testing changes, for example, when you want to
+      batch up your PRs into a single merge by taking the HEAD of the branch you want to merge
+      to, and adding all the PRs to it. This concept is used in tools such as Tide to
+      batch test PR’s, and Zuul CI Gating, to perform speculative execution of
+      PR’s/change requests individually
+    workspaces:
+      - name: output
+        description: The git repo will be cloned onto the volume backing this workspace
+    params:
+      - name: url
+        description: git url to clone
+        type: string
+      - name: revision
+        description: base git revision to checkout (branch, tag, sha, ref…)
+        type: string
+        default: master
+      - name: refspec
+        description: base git refspec to fetch before checking out revision
+        type: string
+        default: "refs/heads/master:refs/heads/master"
+      - name: batchedRefs
+        description: git refs to fetch and batch on top of revision using the given mode (must be a valid refname, no commit SHA's)
+        type: string
+      - name: gitUserName
+        description: git user name to use for creating the batched commit (First Last)
+        type: string
+        default: GitBatch Task
+      - name: gitUserEmail
+        description: git user email to use for creating the batched commit (First.Last@domain.com)
+        type: string
+        default: GitBatch.Task@tekton.dev
+      - name: mode
+        description: git operation to perform while batching (choose from merge, cherry-pick)
+        type: string
+        default: merge
+      - name: submodules
+        description: defines if the resource should initialize and fetch the submodules
+        type: string
+        default: "true"
+      - name: depth
+        description: performs a shallow clone where only the most recent commit(s) will be fetched
+        type: string
+        default: "1"
+      - name: sslVerify
+        description: defines if http.sslVerify should be set to true or false in the global git config
+        type: string
+        default: "true"
+      - name: subdirectory
+        description: subdirectory inside the "output" workspace to clone the git repo into
+        type: string
+        default: "src"
+      - name: deleteExisting
+        description: clean out the contents of the repo's destination directory (if it already exists) before trying to clone the repo there
+        type: string
+        default: "false"
+    results:
+      - name: commit
+        description: The final commit SHA that was obtained after batching all provided refs onto revision
+      - name: tree
+        description: The git tree SHA that was obtained after batching all provided refs onto revision.
+    steps:
+      - name: clone
+        image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.14.2
+        script: |
+          CHECKOUT_DIR="$(workspaces.output.path)/$(params.subdirectory)"
+          cleandir() {
+            # Delete any existing contents of the repo directory if it exists.
+            #
+            # We don't just "rm -rf $CHECKOUT_DIR" because $CHECKOUT_DIR might be "/"
+            # or the root of a mounted volume.
+            if [[ -d "$CHECKOUT_DIR" ]] ; then
+              # Delete non-hidden files and directories
+              rm -rf "$CHECKOUT_DIR"/*
+              # Delete files and directories starting with . but excluding ..
+              rm -rf "$CHECKOUT_DIR"/.[!.]*
+              # Delete files and directories starting with .. plus any other character
+              rm -rf "$CHECKOUT_DIR"/..?*
+            fi
+          }
+          if [[ "$(params.deleteExisting)" == "true" ]] ; then
+            cleandir
+          fi
+          mode="$(params.mode)"
+
+          # startx hack for simple merge
+          if [[ $mode == "startx" ]]; then
+              cd $CHECKOUT_DIR
+              git clone $(params.url) tmp
+              mv tmp/* tmp/.*i* . &>/dev/null
+              rm -rf tmp
+              git checkout "$(params.refspec)"
+              git merge origin/$(params.batchedRefs) 
+              exit 0
+          fi
+
+          p="$(params.batchedRefs)"
+          refs="$(params.refspec)"
+          for ref in $p; do
+            refs="$refs $ref:refs/batch/$ref"
+          done
+          /ko-app/git-init \
+            -url "$(params.url)" \
+            -revision "$(params.revision)" \
+            -refspec "$refs" \
+            -path "$CHECKOUT_DIR" \
+            -sslVerify="$(params.sslVerify)" \
+            -submodules="$(params.submodules)" \
+            -depth "$(params.depth)"
+          git -C $CHECKOUT_DIR config user.name "$(params.gitUserName)"
+          git -C $CHECKOUT_DIR config user.email "$(params.gitUserEmail)"
+          if [[ $mode == "merge" ]]; then
+            for ref in $p; do
+              git -C $CHECKOUT_DIR merge --quiet --allow-unrelated-histories refs/batch/$ref
+            done
+          elif [[ $mode == "cherry-pick" ]]; then
+            for ref in $p; do
+              git -C $CHECKOUT_DIR cherry-pick --allow-empty --keep-redundant-commits refs/batch/$ref
+            done
+          else
+              echo "unsupported mode $mode"
+              exit 1
+          fi
+          RESULT_SHA="$(git -C $CHECKOUT_DIR rev-parse HEAD)"
+          TREE_SHA="$(git -C $CHECKOUT_DIR rev-parse HEAD^{tree})"
+          # Make sure we don't add a trailing newline to the result!
+          echo -n "$(echo $RESULT_SHA | tr -d '\n')" > $(results.commit.path)
+          echo -n "$(echo $TREE_SHA | tr -d '\n')" > $(results.tree.path)
+- kind: Pipeline
+  apiVersion: tekton.dev/v1beta1
+  metadata:
+    labels:
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend
+      pipeline.openshift.io/runtime: nodejs
+      pipeline.openshift.io/runtime-version: "${NODEJS_VERSION}"
+      pipeline.openshift.io/type: kubernetes
+    name: ${APP_NAME}-ci
+  spec:
+    params:
+      - name: APP_NAME
+        default: frontend
+        type: string
+      - name: GIT_REPO
+        default: https://github.com/startxfr/nodejs-rest-http-crud.git
+        type: string
+      - name: GIT_RELEASE
+        default: ${APP_VERSION}
+        type: string
+      - name: IMAGE_NAME
+        default: image-registry.openshift-image-registry.svc:5000/${APP_NAME}-ci/frontend
+        type: string
+      - name: PATH_CONTEXT
+        default: .
+        type: string
+      - name: VERSION
+        default: ${NODEJS_VERSION}
+        type: string
+    tasks:
+    - name: merge-devel-to-main
+      params:
+        - name: url
+          value: $(params.GIT_REPO)
+        - name: revision
+          value: "origin/main"
+        - name: mode
+          value: "startx"
+        - name: refspec
+          value: "main"
+        - name: subdirectory
+          value: ""
+        - name: batchedRefs
+          value: "devel"
+        - name: gitUserName
+          value: "${GITHUB_USERNAME}"
+        - name: gitUserEmail
+          value: "${GITHUB_EMAIL}"
+      taskRef:
+        kind: Task
+        name: git-startx-merge
+      workspaces:
+        - name: output
+          workspace: workspace-devel
+    - name: push-main
+      params:
+        - name: BASE_IMAGE
+          value: "docker.io/alpine/git:v2.26.2"
+        - name: GIT_USER_NAME
+          value: "${GITHUB_USERNAME}"
+        - name: GIT_USER_EMAIL
+          value: "${GITHUB_EMAIL}"
+        - name: GIT_SCRIPT
+          value: >-
+            git push origin main
+        - name: USER_HOME
+          value: /root
+        - name: VERBOSE
+          value: 'true'
+      runAfter:
+        - merge-devel-to-main
+      taskRef:
+        kind: ClusterTask
+        name: git-cli
+      workspaces:
+        - name: source
+          workspace: workspace-devel
+        - name: input
+          workspace: workspace-devel
+        - name: basic-auth
+          workspace: github-credentials
+    - name: fetch-main
+      params:
+      - name: url
+        value: $(params.GIT_REPO)
+      - name: revision
+        value: main
+      - name: subdirectory
+        value: ""
+      - name: deleteExisting
+        value: "true"
+      runAfter:
+        - push-main
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+      - name: output
+        workspace: workspace-mainsrc
+    - name: build-test
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE_NAME):test
+      - name: TLSVERIFY
+        value: "false"
+      - name: PATH_CONTEXT
+        value: $(params.PATH_CONTEXT)
+      - name: VERSION
+        value: $(params.VERSION)
+      runAfter:
+      - fetch-main
+      taskRef:
+        kind: ClusterTask
+        name: s2i-nodejs
+      workspaces:
+      - name: source
+        workspace: workspace-mainsrc
+    - name: deploy-test-frontend
+      params:
+      - name: SCRIPT
+        value: oc rollout status deploy/$(params.APP_NAME)-test
+      runAfter:
+      - build-test
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: test-db
+      params:
+      - name: SCRIPT
+        value: until [[ $(kubectl get endpoints/db-test -o=jsonpath='{.metadata.name}') ]]; do sleep 5; done
+      runAfter:
+      - deploy-test-frontend
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: test-frontend
+      params:
+      - name: SCRIPT
+        value: until [[ $(kubectl get endpoints/frontend-test -o=jsonpath='{.subsets[*].addresses[*].ip}') ]]; do sleep 5; done
+      runAfter:
+      - deploy-test-frontend
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: merge-main-to-stable
+      params:
+        - name: url
+          value: $(params.GIT_REPO)
+        - name: revision
+          value: "origin/stable"
+        - name: mode
+          value: "startx"
+        - name: refspec
+          value: "stable"
+        - name: subdirectory
+          value: ""
+        - name: batchedRefs
+          value: "main"
+        - name: gitUserName
+          value: "${GITHUB_USERNAME}"
+        - name: gitUserEmail
+          value: "${GITHUB_EMAIL}"
+      runAfter:
+        - test-frontend
+        - test-db
+      taskRef:
+        kind: Task
+        name: git-startx-merge
+      workspaces:
+        - name: output
+          workspace: workspace-main
+    - name: push-stable
+      params:
+        - name: BASE_IMAGE
+          value: "docker.io/alpine/git:v2.26.2"
+        - name: GIT_USER_NAME
+          value: "${GITHUB_USERNAME}"
+        - name: GIT_USER_EMAIL
+          value: "${GITHUB_EMAIL}"
+        - name: GIT_SCRIPT
+          value: >-
+            git push origin stable
+        - name: USER_HOME
+          value: /root
+        - name: VERBOSE
+          value: 'true'
+      runAfter:
+        - merge-main-to-stable
+      taskRef:
+        kind: ClusterTask
+        name: git-cli
+      workspaces:
+        - name: source
+          workspace: workspace-main
+        - name: input
+          workspace: workspace-main
+        - name: basic-auth
+          workspace: github-credentials
+    - name: fetch-stable
+      params:
+      - name: url
+        value: $(params.GIT_REPO)
+      - name: revision
+        value: stable
+      - name: subdirectory
+        value: ""
+      - name: deleteExisting
+        value: "true"
+      runAfter:
+      - push-stable
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+      - name: output
+        workspace: workspace-stable
+    - name: build-r7t
+      params:
+      - name: IMAGE
+        value: $(params.IMAGE_NAME):stable
+      - name: TLSVERIFY
+        value: "false"
+      - name: PATH_CONTEXT
+        value: $(params.PATH_CONTEXT)
+      - name: VERSION
+        value: $(params.VERSION)
+      runAfter:
+      - fetch-stable
+      taskRef:
+        kind: ClusterTask
+        name: s2i-nodejs
+      workspaces:
+      - name: source
+        workspace: workspace-stable
+    - name: deploy-r7t-frontend
+      params:
+      - name: SCRIPT
+        value: oc rollout status deploy/$(params.APP_NAME)-r7t
+      runAfter:
+      - build-r7t
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: r7t-db
+      params:
+      - name: SCRIPT
+        value: until [[ $(kubectl get endpoints/db-r7t -o=jsonpath='{.metadata.name}') ]]; do sleep 5; done
+      runAfter:
+        - deploy-r7t-frontend
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: r7t-frontend
+      params:
+      - name: SCRIPT
+        value: until [[ $(kubectl get endpoints/frontend-r7t -o=jsonpath='{.subsets[*].addresses[*].ip}') ]]; do sleep 5; done
+      runAfter:
+        - deploy-r7t-frontend
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: push-preprod
+      params:
+        - name: srcImageURL
+          value: "docker://image-registry.openshift-image-registry.svc:5000/${APP_NAME}-ci/frontend:stable"
+        - name: destImageURL
+          value: "docker://image-registry.openshift-image-registry.svc:5000/${APP_NAME}-preprod/frontend:$(params.GIT_RELEASE)"
+        - name: srcTLSverify
+          value: 'false'
+        - name: destTLSverify
+          value: 'false'
+      runAfter:
+        - r7t-db
+        - r7t-frontend
+      taskRef:
+        kind: ClusterTask
+        name: skopeo-copy-1-6-0
+      workspaces:
+        - name: images-url
+          workspace: img-url
+    - name: push-prod
+      params:
+        - name: srcImageURL
+          value: "docker://image-registry.openshift-image-registry.svc:5000/${APP_NAME}-ci/frontend:stable"
+        - name: destImageURL
+          value: "docker://image-registry.openshift-image-registry.svc:5000/${APP_NAME}-prod/frontend:$(params.GIT_RELEASE)"
+        - name: srcTLSverify
+          value: 'false'
+        - name: destTLSverify
+          value: 'false'
+      runAfter:
+        - r7t-db
+        - r7t-frontend
+      taskRef:
+        kind: ClusterTask
+        name: skopeo-copy-1-6-0
+      workspaces:
+        - name: images-url
+          workspace: img-url
+    - name: release-in-github
+      params:
+        - name: TAG
+          value: $(params.GIT_RELEASE)
+        - name: REVISION
+          value: stable
+        - name: RELEASE_FILE_NAME
+          value: Release.md
+        - name: GITHUB_TOKEN_SECRET
+          value: github-credentials
+        - name: GITHUB_TOKEN_SECRET_KEY
+          value: GITHUB_TOKEN
+      runAfter:
+        - push-preprod
+        - push-prod
+      taskRef:
+        kind: Task
+        name: create-github-release
+      workspaces:
+        - name: input
+          workspace: ephemeral
+        - name: source
+          workspace: workspace-stable
+        - name: release-notes
+          workspace: workspace-stable
+    workspaces:
+    - name: workspace-devel
+    - name: workspace-mainsrc
+    - name: workspace-main
+    - name: workspace-stable
+    - name: img-url
+    - name: ephemeral
+    - name: github-credentials
+- kind: PipelineRun
+  apiVersion: tekton.dev/v1beta1
+  metadata:
+    labels:
+      app: "${APP_NAME}"
+      version: "${APP_VERSION}"
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: ${APP_NAME}-ci-run
+      pipeline.openshift.io/runtime: nodejs
+      pipeline.openshift.io/runtime-version: "${NODEJS_VERSION}"
+      pipeline.openshift.io/type: kubernetes
+      tekton.dev/pipeline: ${APP_NAME}-ci
+    name: ${APP_NAME}-ci-${APP_VERSION}
+    # generateName: ${APP_NAME}-ci-run-
+  spec:
+    params:
+    - name: APP_NAME
+      value: frontend
+    - name: GIT_REPO
+      value: https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/startxfr/nodejs-rest-http-crud.git
+    - name: GIT_RELEASE
+      value: ${APP_VERSION}
+    - name: IMAGE_NAME
+      value: image-registry.openshift-image-registry.svc:5000/${APP_NAME}-ci/frontend
+    - name: PATH_CONTEXT
+      value: .
+    - name: VERSION
+      value: ${NODEJS_VERSION}
+    pipelineRef:
+      name: ${APP_NAME}-ci
+    workspaces:
+    - name: img-url
+      emptyDir: {}
+    - name: ephemeral
+      emptyDir: {}
+    - name: github-credentials
+      secret:
+        secretName: github-credentials
+    - name: workspace-mainsrc
+      volumeClaimTemplate:
+        metadata:
+          labels:
+            app: ${APP_NAME}-workspace-mainsrc
+            app.kubernetes.io/component: ci
+            app.kubernetes.io/instance: ${APP_NAME}
+            app.kubernetes.io/name: workspace-mainsrc
+            app.kubernetes.io/part-of: ${APP_NAME}-ci
+            startx.fr/app: ${APP_NAME}
+            tekton.dev/pipeline: ${APP_NAME}-ci
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    - name: workspace-devel
+      volumeClaimTemplate:
+        metadata:
+          labels:
+            app: ${APP_NAME}-workspace-devel
+            app.kubernetes.io/component: ci
+            app.kubernetes.io/instance: ${APP_NAME}
+            app.kubernetes.io/name: workspace-devel
+            app.kubernetes.io/part-of: ${APP_NAME}-ci
+            startx.fr/app: ${APP_NAME}
+            tekton.dev/pipeline: ${APP_NAME}-ci
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    - name: workspace-main
+      volumeClaimTemplate:
+        metadata:
+          labels:
+            app: ${APP_NAME}-workspace-main
+            app.kubernetes.io/component: ci
+            app.kubernetes.io/instance: ${APP_NAME}
+            app.kubernetes.io/name: workspace-main
+            app.kubernetes.io/part-of: ${APP_NAME}-ci
+            startx.fr/app: ${APP_NAME}
+            tekton.dev/pipeline: ${APP_NAME}-ci
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    - name: workspace-stable
+      volumeClaimTemplate:
+        metadata:
+          labels:
+            app: ${APP_NAME}-workspace-stable
+            app.kubernetes.io/component: ci
+            app.kubernetes.io/instance: ${APP_NAME}
+            app.kubernetes.io/name: workspace-stable
+            app.kubernetes.io/part-of: ${APP_NAME}-ci
+            startx.fr/app: ${APP_NAME}
+            tekton.dev/pipeline: ${APP_NAME}-ci
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+- kind: Route
+  apiVersion: route.openshift.io/v1
+  metadata:
+    annotations:
+      app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"db-test"}]'
+      openshift.io/host.generated: "true"
+    labels:
+      app: frontend-test
+      app.kubernetes.io/component: ${APP_NAME}
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend-test
+      app.kubernetes.io/part-of: ${APP_NAME}-test
+      app.openshift.io/runtime: nodejs
+      app.openshift.io/runtime-version: "${NODEJS_VERSION}"
+      startx.fr/app: ${APP_NAME}
+    name: frontend-test
+  spec:
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: frontend-test
+      weight: 100
+    wildcardPolicy: None
+- kind: Route
+  apiVersion: route.openshift.io/v1
+  metadata:
+    annotations:
+      app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"db-r7t"}]'
+      openshift.io/host.generated: "true"
+    labels:
+      app: frontend-r7t
+      app.kubernetes.io/component: ${APP_NAME}
+      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/name: frontend-r7t
+      app.kubernetes.io/part-of: ${APP_NAME}-r7t
+      app.openshift.io/runtime: nodejs
+      app.openshift.io/runtime-version: "${NODEJS_VERSION}"
+      startx.fr/app: ${APP_NAME}
+    name: frontend-r7t
+  spec:
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: frontend-r7t
+      weight: 100
+    wildcardPolicy: None
+parameters:
+  - name: APP_NAME
+    displayName: Application name
+    description: "Name of the application. Used for namespace scope"
+    value: fruitapp
+  - name: APP_VERSION
+    displayName: Application version
+    description: "Version sequence to output from this pipeline"
+    value: v3.2.10
+  - name: POSTGRESQL_VERSION
+    displayName: PostgreSQL version
+    description: "Version of the postgresql backend. Could be 10-el7, 10-el8, 9.6-el8, 13-el8, 12-el8, 12-el7"
+    value: latest
+  - name: NODEJS_VERSION
+    displayName: NodeJS version
+    description: "Version of the NodeJS builder. Could be 12-ubi7, 12-ubi8, 14-ubi7, 14-ubi8, 14-ubi8-minimal"
+    value: latest
+  - name: GITHUB_USERNAME
+    displayName: Github username
+    description: "Github username associated to the token"
+    value: startxfr
+  - name: GITHUB_EMAIL
+    displayName: Github email
+    description: "Github username email adress used when merge branch"
+    value: "dev@startx.fr"
+  - name: GITHUB_TOKEN
+    displayName: Github token
+    description: "Token associated to the user and allowed to push to the repository"
+    value: "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"
