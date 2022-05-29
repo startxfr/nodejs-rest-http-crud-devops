@@ -48,6 +48,7 @@ objects:
       template.openshift.io/expose-database_name: '{.data[''database-name'']}'
       template.openshift.io/expose-password: '{.data[''database-password'']}'
       template.openshift.io/expose-username: '{.data[''database-user'']}'
+    namespace: ${APP_NAME}-devel-${DEV_NAME}
     name: db
   type: Opaque
 - kind: Deployment
@@ -65,6 +66,7 @@ objects:
       app.openshift.io/runtime: postgresql
       app.openshift.io/runtime-version: "${POSTGRESQL_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-devel-${DEV_NAME}
     name: db
   spec:
     replicas: 1
@@ -168,6 +170,7 @@ objects:
       app.openshift.io/runtime: nodejs
       app.openshift.io/runtime-version: "${NODEJS_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-devel-${DEV_NAME}
     name: frontend
   spec:
     progressDeadlineSeconds: 600
@@ -268,6 +271,7 @@ objects:
       app.kubernetes.io/name: db
       app.kubernetes.io/part-of: ${APP_NAME}
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-devel-${DEV_NAME}
     name: db
   spec:
     internalTrafficPolicy: Cluster
@@ -297,6 +301,7 @@ objects:
       app.openshift.io/runtime: nodejs
       app.openshift.io/runtime-version: "${NODEJS_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-devel-${DEV_NAME}
     name: frontend
   spec:
     ports:
@@ -324,6 +329,7 @@ objects:
       app.openshift.io/runtime: nodejs
       app.openshift.io/runtime-version: "${NODEJS_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-devel-${DEV_NAME}
     name: frontend
   spec:
     lookupPolicy:
@@ -337,7 +343,8 @@ objects:
       pipeline.openshift.io/runtime: nodejs
       pipeline.openshift.io/runtime-version: "${NODEJS_VERSION}"
       pipeline.openshift.io/type: kubernetes
-    name: frontend
+    namespace: ${APP_NAME}-devel-${DEV_NAME}
+    name: frontend-devel
   spec:
     params:
     - default: frontend
@@ -408,12 +415,13 @@ objects:
   apiVersion: tekton.dev/v1beta1
   metadata:
     labels:
-      app.kubernetes.io/instance: frontend
+      app.kubernetes.io/instance: frontend-devel
       app.kubernetes.io/name: frontend
       pipeline.openshift.io/runtime: nodejs
       pipeline.openshift.io/runtime-version: "${NODEJS_VERSION}"
       pipeline.openshift.io/type: kubernetes
-      tekton.dev/pipeline: frontend
+      tekton.dev/pipeline: frontend-devel
+    namespace: ${APP_NAME}-devel-${DEV_NAME}
     name: frontend-firstrun
   spec:
     params:
@@ -430,7 +438,7 @@ objects:
     - name: VERSION
       value: ${NODEJS_VERSION}
     pipelineRef:
-      name: frontend
+      name: frontend-devel
     workspaces:
     - name: workspace
       volumeClaimTemplate:
@@ -458,6 +466,7 @@ objects:
       app.openshift.io/runtime: nodejs
       app.openshift.io/runtime-version: "${NODEJS_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-devel-${DEV_NAME}
     name: frontend
   spec:
     port:
@@ -475,7 +484,7 @@ parameters:
   - name: APP_NAME
     displayName: Application name
     description: "Name of the application. Used for namespace scope"
-    value: fruitapp
+    value: fruitapp4
   - name: POSTGRESQL_VERSION
     displayName: PostgreSQL version
     description: "Version of the postgresql backend. Could be 10-el7, 10-el8, 9.6-el8, 13-el8, 12-el8, 12-el7"

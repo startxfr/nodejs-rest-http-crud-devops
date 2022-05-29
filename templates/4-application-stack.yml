@@ -376,7 +376,7 @@ parameters:
   - name: APP_NAME
     displayName: Application name
     description: "Name of the application. Used for namespace scope"
-    value: fruitapp
+    value: fruitapp4
   - name: APP_VERSION
     displayName: Application version
     description: "Version sequence to output from this pipeline"

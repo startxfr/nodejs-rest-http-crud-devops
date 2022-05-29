@@ -25,7 +25,6 @@ labels:
   template: fruitapp-project
   app.kubernetes.io/managed-by: startx
 objects:
-
 - kind: Project
   apiVersion: project.openshift.io/v1
   metadata:
@@ -112,6 +111,8 @@ objects:
     name: 'ci-pipeline-pusher-role'
     namespace: ${APP_NAME}-preprod
   subjects:
+    - kind: User
+      name: system:serviceaccounts:fruitapp-ci:pipeline
     - kind: ServiceAccount
       name: pipeline
       namespace: fruitapp-ci
@@ -125,6 +126,8 @@ objects:
     name: 'ci-pipeline-pusher-role'
     namespace: ${APP_NAME}-prod
   subjects:
+    - kind: User
+      name: system:serviceaccounts:fruitapp-ci:pipeline
     - kind: ServiceAccount
       name: pipeline
       namespace: fruitapp-ci
@@ -140,4 +143,20 @@ parameters:
   - name: APP_NAME
     displayName: Application name
     description: "Name of the application. Used for namespace scope"
-    value: fruitapp
+    value: fruitapp4
+
+      
+
+
+
+
+
+
+
+
+
+
+
+
+
+

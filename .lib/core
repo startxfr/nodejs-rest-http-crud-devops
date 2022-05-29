@@ -1,0 +1,177 @@
+#!/bin/bash
+
+# Apply the project template
+function applyProject {
+    local appname=${1:-fruitapp}
+    local devname=${2:-christophe}
+    echo "======== APPLY PROJECT ${appname}"
+    doProject apply "${appname}" "${devname}"
+}
+
+# Delete the project template
+function deleteProject {
+    local appname=${1:-fruitapp}
+    local devname=${2:-christophe}
+    echo "======== DELETE PROJECT ${appname}"
+    doProject delete "${appname}" "${devname}"
+}
+
+# Do the project template
+function doProject {
+    local action=${1:-apply}
+    local appname=${2:-fruitapp}
+    local devname=${3:-christophe}
+    oc process \
+    -f templates/1-project.yml \
+    -p APP_NAME="${appname}" \
+    -p DEV_NAME="${devname}" \
+    | oc "${action}" -f -
+}
+
+# Apply the devel template
+function applyDevel {
+    local appname=${1:-fruitapp}
+    local devname=${2:-christophe}
+    echo "======== APPLY DEVEL ${appname}"
+    doDevel apply "${appname}" "${devname}"
+}
+
+# Delete the devel template
+function deleteDevel {
+    local appname=${1:-fruitapp}
+    local devname=${2:-christophe}
+    echo "======== DELETE DEVEL ${appname}"
+    doDevel delete "${appname}" "${devname}"
+}
+
+# Do the devel template
+function doDevel {
+    local action=${1:-apply}
+    local appname=${2:-fruitapp}
+    local devname=${3:-christophe}
+    oc process \
+    -f templates/2-dev.yml \
+    -p APP_NAME="${appname}" \
+    -p DEV_NAME="${devname}" \
+    | oc "${action}" -f -
+}
+
+# Apply the integration template
+function applyIntegration {
+    local appname=${1:-fruitapp}
+    local appversion=${2:-v3.2.10}
+    echo "======== APPLY INTEGRATION ${appname}"
+    doIntegration apply "${appname}" "${appversion}"
+}
+
+# Delete the integration template
+function deleteIntegration {
+    local appname=${1:-fruitapp}
+    local appversion=${2:-v3.2.10}
+    echo "======== DELETE INTEGRATION ${appname}"
+    doIntegration delete "${appname}" "${appversion}"
+}
+
+# Do the integration template
+function doIntegration {
+    local action=${1:-apply}
+    local appname=${2:-fruitapp}
+    local appversion=${3:-v3.2.10}
+    oc process \
+    -f templates/3-integration.yml \
+    -p APP_NAME="${appname}" \
+    -p APP_VERSION="${appversion}" \
+    | oc "${action}" -f -
+}
+
+# Apply the deploy template
+function applyDeploy {
+    local appname=${1:-fruitapp}
+    local appversion=${2:-v3.2.10}
+    local envname=${3:-preprod}
+    local appreplicas=${4:-2}
+    echo "======== APPLY DEPLOYMENT for ${appname} ${appversion} in ${envname}"
+    doDeploy apply "${appname}" "${appversion}" "${envname}" "${appreplicas}"
+}
+
+# Delete the deploy template
+function deleteDeploy {
+    local appname=${1:-fruitapp}
+    local appversion=${2:-v3.2.10}
+    local envname=${3:-preprod}
+    local appreplicas=${4:-2}
+    echo "======== DELETE DEPLOYMENT for ${appname} ${appversion} in ${envname}"
+    doDeploy delete "${appname}" "${appversion}" "${envname}" "${appreplicas}"
+}
+
+# Apply the deploy template
+function doDeploy {
+    local action=${1:-apply}
+    local appname=${2:-fruitapp}
+    local appversion=${3:-v3.2.10}
+    local envname=${4:-preprod}
+    local appreplicas=${5:-2}
+    oc process \
+    -f templates/4-application-stack.yml \
+    -p APP_NAME="${appname}" \
+    -p APP_VERSION="${appversion}" \
+    -p ENV_NAME="${envname}" \
+    -p APP_REPLICAS="${appreplicas}" \
+    | oc "${action}" -f -
+}
+
+# Apply the loadgen loop
+function loadgen {
+  local nbapp=${1:-1}
+  local appversion=${2:-v3.2.10}
+  local nbrep=${3:-2}
+  for start in $(seq 1 1 "${nbapp}")
+  do
+    echo "======== LOADGEN ${start} for fruitapp ${appversion}"
+    applyProject "fruitapp${start}" christophe
+    applyDevel "fruitapp${start}" christophe
+    applyIntegration "fruitapp${start}" "${appversion}"
+    applyDeploy "fruitapp${start}" "${appversion}" preprod "${nbrep}"
+    applyDeploy "fruitapp${start}" "${appversion}" prod "${nbrep}"
+  done
+}
+
+# Apply the loaddel loop
+function loaddel {
+  local nbapp=${1:-1}
+  local appversion=${2:-v3.2.10}
+  local nbrep=${3:-2}
+  for start in $(seq 1 1 "${nbapp}")
+  do
+    echo "======== LOADDEL ${start} for fruitapp ${appversion}"
+    deleteDeploy "fruitapp${start}" "${appversion}" prod "${nbrep}"
+    deleteDeploy "fruitapp${start}" "${appversion}" preprod "${nbrep}"
+    deleteIntegration "fruitapp${start}" "${appversion}"
+    deleteDevel "fruitapp${start}" christophe
+    applyProject "fruitapp${start}" christophe
+  done
+}
+
+# menu switch for usage command
+function menuUsage {
+    menuHeadArt
+    cat <<EOF
+
+This client helps you deploy the nodejs-rest-http-crud demo example
+
+Available actions are : project, devel, ci, preprod, prod and loadgen
+
+# Usage
+
+[user@localhost]$ sx-demo <action> [<options>]
+
+# Availables actions
+
+  - project [APP_NAME] [DEV_NAME]                    Deploy all project and required components for an application
+  - devel [APP_NAME] [DEV_NAME]                      Deploy a developpement application for a given developper
+  - integation [APP_NAME] [APP_VERSION]              Deploy a CI environement for your application and run build for a given version
+  - deploy [APP_NAME] [APP_VERSION] [ENV_NAME]       Deploy an aplication version for a given environement (prepros, prod)
+  - loadgen [NB_APP] [APP_VERSION] [NB_REP]          Deploy an bunch of application stack with load replicas
+  - loaddel [NB_APP] [APP_VERSION] [NB_REP]          Remove an bunch of application stack with all contents
+EOF
+}

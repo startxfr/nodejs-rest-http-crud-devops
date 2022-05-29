@@ -68,6 +68,7 @@ objects:
       app.openshift.io/runtime: postgresql
       app.openshift.io/runtime-version: "${POSTGRESQL_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: db-test
   type: Opaque
 - kind: Secret
@@ -91,11 +92,13 @@ objects:
       app.openshift.io/runtime: postgresql
       app.openshift.io/runtime-version: "${POSTGRESQL_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: db-r7t
   type: Opaque
 - kind: Secret
   apiVersion: v1
   metadata:
+    namespace: ${APP_NAME}-ci
     name: github-credentials
     labels:
       app: ci
@@ -144,6 +147,7 @@ objects:
       app.openshift.io/runtime: postgresql
       app.openshift.io/runtime-version: "${POSTGRESQL_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: db-test
   spec:
     replicas: 1
@@ -248,6 +252,7 @@ objects:
       app.openshift.io/runtime: nodejs
       app.openshift.io/runtime-version: "${NODEJS_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: frontend-test
   spec:
     progressDeadlineSeconds: 600
@@ -349,6 +354,7 @@ objects:
       app.openshift.io/runtime: postgresql
       app.openshift.io/runtime-version: "${POSTGRESQL_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: db-r7t
   spec:
     replicas: 1
@@ -453,6 +459,7 @@ objects:
       app.openshift.io/runtime: nodejs
       app.openshift.io/runtime-version: "${NODEJS_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: frontend-r7t
   spec:
     progressDeadlineSeconds: 600
@@ -546,6 +553,7 @@ objects:
   metadata:
     annotations:
       template.openshift.io/expose-uri: postgres://{.spec.clusterIP}:{.spec.ports[?(.name=="postgresql")].port}
+    namespace: ${APP_NAME}-ci
     name: db-test
   spec:
     internalTrafficPolicy: Cluster
@@ -574,6 +582,7 @@ objects:
       app.kubernetes.io/name: frontend-test
       app.kubernetes.io/part-of: ${APP_NAME}-test
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: frontend-test
   spec:
     ports:
@@ -590,6 +599,7 @@ objects:
   metadata:
     annotations:
       template.openshift.io/expose-uri: postgres://{.spec.clusterIP}:{.spec.ports[?(.name=="postgresql")].port}
+    namespace: ${APP_NAME}-ci
     name: db-r7t
   spec:
     internalTrafficPolicy: Cluster
@@ -618,6 +628,7 @@ objects:
       app.kubernetes.io/name: frontend-r7t
       app.kubernetes.io/part-of: ${APP_NAME}-r7t
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: frontend-r7t
   spec:
     ports:
@@ -645,6 +656,7 @@ objects:
       app.openshift.io/runtime: nodejs
       app.openshift.io/runtime-version: "${NODEJS_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: frontend
   spec:
     lookupPolicy:
@@ -659,6 +671,7 @@ objects:
       tekton.dev/pipelines.minVersion: 0.12.1
       tekton.dev/platforms: linux/amd64
       tekton.dev/tags: github
+    namespace: ${APP_NAME}-ci
     name: create-github-release
     labels:
       app: ci
@@ -737,6 +750,7 @@ objects:
 - kind: Task
   apiVersion: tekton.dev/v1beta1
   metadata:
+    namespace: ${APP_NAME}-ci
     name: git-startx-merge
     labels:
       app: ci
@@ -892,6 +906,7 @@ objects:
       pipeline.openshift.io/runtime: nodejs
       pipeline.openshift.io/runtime-version: "${NODEJS_VERSION}"
       pipeline.openshift.io/type: kubernetes
+    namespace: ${APP_NAME}-ci
     name: ${APP_NAME}-ci
   spec:
     params:
@@ -1228,6 +1243,7 @@ objects:
       pipeline.openshift.io/runtime-version: "${NODEJS_VERSION}"
       pipeline.openshift.io/type: kubernetes
       tekton.dev/pipeline: ${APP_NAME}-ci
+    namespace: ${APP_NAME}-ci
     name: ${APP_NAME}-ci-${APP_VERSION}
     # generateName: ${APP_NAME}-ci-run-
   spec:
@@ -1337,6 +1353,7 @@ objects:
       app.openshift.io/runtime: nodejs
       app.openshift.io/runtime-version: "${NODEJS_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: frontend-test
   spec:
     port:
@@ -1361,6 +1378,7 @@ objects:
       app.openshift.io/runtime: nodejs
       app.openshift.io/runtime-version: "${NODEJS_VERSION}"
       startx.fr/app: ${APP_NAME}
+    namespace: ${APP_NAME}-ci
     name: frontend-r7t
   spec:
     port:
@@ -1374,7 +1392,7 @@ parameters:
   - name: APP_NAME
     displayName: Application name
     description: "Name of the application. Used for namespace scope"
-    value: fruitapp
+    value: fruitapp4
   - name: APP_VERSION
     displayName: Application version
     description: "Version sequence to output from this pipeline"
