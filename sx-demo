@@ -1,0 +1,17 @@
+#!/bin/bash
+# shellcheck source=/dev/null
+source .lib/core
+
+if [[ "$1" != "" ]]; then
+    case $1 in
+        project)    applyProject "$2" "$3";;
+        devel)      applyDevel "$2" "$3";;
+        integation) applyIntegation "$2" "$3";;
+        deploy)     applyDeploy "$2" "$3" "$4";;
+        loadgen)    applyLoadgen "$2" "$3" "$4";;
+        loaddel)    applyLoaddel "$2" "$3" "$4";;
+        *)          menuUsage "$@" ;;
+    esac
+else
+    menuUsage
+fi
