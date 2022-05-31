@@ -376,11 +376,11 @@ parameters:
   - name: APP_NAME
     displayName: Application name
     description: "Name of the application. Used for namespace scope"
-    value: fruitapp4
+    value: fruitapp
   - name: APP_VERSION
     displayName: Application version
     description: "Version sequence to output from this pipeline"
-    value: v3.2.10
+    value: v3.2.11
   - name: APP_REPLICAS
     displayName: Application replicas
     description: "Number of pod replicas for the frontend service"
@@ -407,5 +407,5 @@ parameters:
   - name: VOLUME_STORAGECLASS
     displayName: Database storage QOS
     description: 'Storage class used for database store. Define the storage qos. See available storageclass. Example are startx-aws-fast-retain, startx-aws-generic-retain, gp2 or startx-aws-slow-retain'
-    value: gp2
+    value: startx-aws-generic-retain
     required: true

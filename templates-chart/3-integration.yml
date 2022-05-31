@@ -1,0 +1,57 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: fruitapp-integration
+  annotations:
+    openshift.io/display-name: STARTX FruitApp demo (devel)
+    description: >
+      Deploy 4 namespaces (devel, ci, preprod and prod) and credentials to 
+      authorize the ci namespace to push images to the preprod and prod namespaces
+    tags: startx,demo,application,ci,cd,cicd,fruitapp
+    openshift.io/provider-display-name: STARTX
+    openshift.io/generated-by: startx
+  labels:
+    template: fruitapp-integration
+    app.kubernetes.io/name: "fruitapp-integration"
+    app.kubernetes.io/managed-by: startx
+message: |-
+  Full demo environment is deployed via `fruitapp-integration` argocd application with the following characteristics :
+
+  ArgoCD application       : ${APP_NAME}-integration
+  Developper namespace     : ${APP_NAME}-integration-${DEV_NAME}
+  Integration namespace    : ${APP_NAME}-ci
+  Pre-production namespace : ${APP_NAME}-preprod
+  Production namespace     : ${APP_NAME}-prod
+labels:
+  template: fruitapp-integration
+  app.kubernetes.io/managed-by: startx
+objects: 
+parameters:
+  - name: DEV_NAME
+    displayName: Developper name
+    description: "Name of the developper. Used for namespace scope"
+    value: christophe
+  - name: APP_NAME
+    displayName: Application name
+    description: "Name of the application. Used for namespace scope"
+    value: fruitapp
+  - name: ARGOCD_NS
+    displayName: The namespace where argocd server goes to
+    description: "Namespace to place argocd server to"
+    value: openshift-gitops
+  - name: SCOPE
+    displayName: Project scope
+    description: "Project scope (ex: sxv4)"
+    value: startx
+  - name: CLUSTER
+    displayName: Cluster name
+    description: "Name of the current cluster (ex: demo, lahsc, test)"
+    value: lahsc
+  - name: VERSION
+    displayName: Project version
+    description: "Project deployed release"
+    value: "3.2.11"
+  - name: HELM_RELEASE
+    displayName: Helm repository release
+    description: "Branch or release name for the helm repository holding all charts"
+    value: devel

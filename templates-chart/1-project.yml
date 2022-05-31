@@ -1,0 +1,396 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: fruitapp-project
+  annotations:
+    openshift.io/display-name: STARTX FruitApp demo (project)
+    description: >
+      Deploy 4 namespaces (devel, ci, preprod and prod) and credentials to 
+      authorize the ci namespace to push images to the preprod and prod namespaces
+    tags: startx,demo,application,ci,cd,cicd,fruitapp
+    openshift.io/provider-display-name: STARTX
+    openshift.io/generated-by: startx
+  labels:
+    template: fruitapp-project
+    app.kubernetes.io/name: "fruitapp-project"
+    app.kubernetes.io/managed-by: startx
+message: |-
+  Full demo environment is deployed via `fruitapp-project` argocd application with the following characteristics :
+
+  ArgoCD application       : ${APP_NAME}-project
+  Developper namespace     : ${APP_NAME}-devel-${DEV_NAME}
+  Integration namespace    : ${APP_NAME}-ci
+  Pre-production namespace : ${APP_NAME}-preprod
+  Production namespace     : ${APP_NAME}-prod
+labels:
+  template: fruitapp-project
+  app.kubernetes.io/managed-by: startx
+objects: 
+- kind: Application
+  apiVersion: argoproj.io/v1alpha1
+  metadata:
+    name: ${APP_NAME}-project-devel-${DEV_NAME}
+    namespace: "${ARGOCD_NS}"
+    labels:  &basic_labels
+      app.startx.fr/scope: "${SCOPE}"
+      app.startx.fr/cluster: "${CLUSTER}"
+      app.startx.fr/component: "${APP_NAME}-project"
+      app.kubernetes.io/name: "argoapp-${APP_NAME}-project-devel-${DEV_NAME}-application"
+      app.kubernetes.io/part-of: ${APP_NAME}-project-devel-${DEV_NAME}
+      app.kubernetes.io/version: "${APP_VERSION}"
+      app.kubernetes.io/component: "${APP_NAME}-project"
+    annotations: &basic_annotations
+      openshift.io/generated-by: sxcm
+      # argocd.argoproj.io/manifest-generate-paths: .
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+  spec:
+    destination:
+      namespace: "${ARGOCD_NS}"
+      server: 'https://kubernetes.default.svc'
+    info:
+      - name: teammail
+        value: dev@startx.fr
+    project: cluster-admin
+    source:
+      path: charts/example-fruitapp-project/
+      repoURL: 'https://github.com/startxfr/helm-repository.git'
+      targetRevision: "${HELM_RELEASE}"
+      helm:
+        values: |
+          context: &context
+            scope: "${SCOPE}"
+            cluster: ${CLUSTER}
+            environment: global
+            component: ${APP_NAME}
+            app: ${APP_NAME}
+            version: "${APP_VERSION}"
+          devel_chain:
+            enabled: false
+          project_devel: 
+            enabled: true
+            context: 
+              <<: *context
+            project: 
+              enabled: true
+              type: project
+              name: ${APP_NAME}-devel-${DEV_NAME}
+              display_name: "${APP_NAME} Dev ${DEV_NAME}"
+              description: ${APP_NAME} ${DEV_NAME}'s developper environment
+            rbac: 
+              enabled: false
+              groups: []
+              users: []
+            networkpolicy: 
+              enabled: false
+              rules: []
+            limits: 
+              enabled: false
+              rules: ""
+            quotas: 
+              enabled: false
+              rules: ""
+            serviceAccounts:
+              enabled: false
+              list: []
+            dockercfg:
+              enabled: false
+              list: []
+          project_integration: 
+            enabled: false
+          project_preprod: 
+            enabled: false
+          project_prod: 
+            enabled: false
+          imagestreams:
+            enabled: false
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: false
+      syncOptions:
+        - CreateNamespace=false
+        - Validate=true
+      retry:
+        limit: 2
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 20s
+- kind: Application
+  apiVersion: argoproj.io/v1alpha1
+  metadata:
+    name: ${APP_NAME}-project-ci
+    namespace: "${ARGOCD_NS}"
+    labels:  &basic_labels
+      app.startx.fr/scope: "${SCOPE}"
+      app.startx.fr/cluster: "${CLUSTER}"
+      app.startx.fr/component: "${APP_NAME}-project"
+      app.kubernetes.io/name: "argoapp-${APP_NAME}-project-ci-application"
+      app.kubernetes.io/part-of: ${APP_NAME}-project-ci
+      app.kubernetes.io/version: "${APP_VERSION}"
+      app.kubernetes.io/component: "${APP_NAME}-project"
+    annotations: &basic_annotations
+      openshift.io/generated-by: sxcm
+      # argocd.argoproj.io/manifest-generate-paths: .
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+  spec:
+    destination:
+      namespace: "${ARGOCD_NS}"
+      server: 'https://kubernetes.default.svc'
+    info:
+      - name: teammail
+        value: dev@startx.fr
+    project: cluster-admin
+    source:
+      path: charts/example-fruitapp-project/
+      repoURL: 'https://github.com/startxfr/helm-repository.git'
+      targetRevision: "${HELM_RELEASE}"
+      helm:
+        values: |
+          context: &context
+            scope: "${SCOPE}"
+            cluster: ${CLUSTER}
+            environment: global
+            component: ${APP_NAME}
+            app: ${APP_NAME}
+            version: "${APP_VERSION}"
+          devel_chain:
+            enabled: false
+          project_devel: 
+            enabled: false
+          project_integration: 
+            enabled: true
+            context: 
+              <<: *context
+            project: 
+              enabled: true
+              type: project
+              name: ${APP_NAME}-ci
+              display_name: "${APP_NAME} Integration"
+              description: ${APP_NAME} integration environment
+            rbac: 
+              enabled: false
+              groups: []
+              users: []
+            networkpolicy: 
+              enabled: false
+              rules: []
+            limits: 
+              enabled: false
+              rules: ""
+            quotas: 
+              enabled: false
+              rules: ""
+            serviceAccounts:
+              enabled: false
+              list: []
+            dockercfg:
+              enabled: false
+              list: []
+          project_preprod: 
+            enabled: false
+          project_prod: 
+            enabled: false
+          imagestreams:
+            enabled: true
+            context: 
+              <<: *context
+            imagestreams:
+            - name: frontend
+              enabled: true
+              namespace: "${APP_NAME}-ci"
+              displayName: "${APP_NAME} CI Images"
+              labels: |
+                app: frontend
+                app.kubernetes.io/name: frontend
+                app.openshift.io/runtime: nodejs
+              tags: []
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: false
+      syncOptions:
+        - CreateNamespace=false
+        - Validate=true
+      retry:
+        limit: 2
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 20s
+- kind: Application
+  apiVersion: argoproj.io/v1alpha1
+  metadata:
+    name: ${APP_NAME}-project-cd
+    namespace: "${ARGOCD_NS}"
+    labels:  &basic_labels
+      app.startx.fr/scope: "${SCOPE}"
+      app.startx.fr/cluster: "${CLUSTER}"
+      app.startx.fr/component: "${APP_NAME}-project"
+      app.kubernetes.io/name: "argoapp-${APP_NAME}-project-cd-application"
+      app.kubernetes.io/part-of: ${APP_NAME}-project-cd
+      app.kubernetes.io/version: "${APP_VERSION}"
+      app.kubernetes.io/component: "${APP_NAME}-project"
+    annotations: &basic_annotations
+      openshift.io/generated-by: sxcm
+      # argocd.argoproj.io/manifest-generate-paths: .
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+  spec:
+    destination:
+      namespace: "${ARGOCD_NS}"
+      server: 'https://kubernetes.default.svc'
+    info:
+      - name: teammail
+        value: dev@startx.fr
+    project: cluster-admin
+    source:
+      path: charts/example-fruitapp-project/
+      repoURL: 'https://github.com/startxfr/helm-repository.git'
+      targetRevision: "${HELM_RELEASE}"
+      helm:
+        values: |
+          context: &context
+            scope: "${SCOPE}"
+            cluster: ${CLUSTER}
+            environment: global
+            component: ${APP_NAME}
+            app: ${APP_NAME}
+            version: "${APP_VERSION}"
+          devel_chain:
+            enabled: false
+          project_devel: 
+            enabled: false
+          project_integration: 
+            enabled: false
+          project_preprod: 
+            enabled: true
+            context: 
+              <<: *context
+            project: 
+              enabled: true
+              type: project
+              name: ${APP_NAME}-preprod
+              display_name: "${APP_NAME} Preprod"
+              description: ${APP_NAME} pre-production environment
+            rbac: 
+              enabled: true
+              users: 
+              - id: ci-pipeline-pusher-role
+                name: "system:serviceaccounts:${APP_NAME}-ci:pipeline"
+                role: "system:image-pusher"
+              groups: []
+            networkpolicy: 
+              enabled: false
+              rules: []
+            limits: 
+              enabled: false
+              rules: ""
+            quotas: 
+              enabled: false
+              rules: ""
+            serviceAccounts:
+              enabled: false
+              list: []
+            dockercfg:
+              enabled: false
+              list: []
+          project_prod: 
+            enabled: true
+            context: 
+              <<: *context
+            project: 
+              enabled: true
+              type: project
+              name: ${APP_NAME}-prod
+              display_name: "${APP_NAME} Prod"
+              description: ${APP_NAME} production environment
+            rbac: 
+              enabled: true
+              users: 
+              - id: ci-pipeline-pusher-role
+                name: "system:serviceaccounts:${APP_NAME}-ci:pipeline"
+                role: "system:image-pusher"
+              groups: []
+            networkpolicy: 
+              enabled: false
+              rules: []
+            limits: 
+              enabled: false
+              rules: ""
+            quotas: 
+              enabled: false
+              rules: ""
+            serviceAccounts:
+              enabled: false
+              list: []
+            dockercfg:
+              enabled: false
+              list: []
+          imagestreams:
+            enabled: true
+            context: 
+              <<: *context
+            imagestreams:
+            - name: frontend
+              enabled: true
+              namespace: "${APP_NAME}-preprod"
+              displayName: "${APP_NAME} PreProd"
+              labels: |
+                app: frontend
+                app.kubernetes.io/name: frontend
+                app.openshift.io/runtime: nodejs
+              tags: []
+            - name: frontend
+              enabled: true
+              namespace: "${APP_NAME}-prod"
+              displayName: "${APP_NAME} Prod"
+              labels: |
+                app: frontend
+                app.kubernetes.io/name: frontend
+                app.openshift.io/runtime: nodejs
+              tags: []
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: false
+      syncOptions:
+        - CreateNamespace=false
+        - Validate=true
+      retry:
+        limit: 2
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 20s
+parameters:
+  - name: DEV_NAME
+    displayName: Developper name
+    description: "Name of the developper. Used for namespace scope"
+    value: pierre
+  - name: APP_NAME
+    displayName: Application name
+    description: "Name of the application. Used for namespace scope"
+    value: fruitapp
+  - name: SCOPE
+    displayName: Project scope
+    description: "Project scope (ex: sxv4)"
+    value: startx
+  - name: CLUSTER
+    displayName: Cluster name
+    description: "Name of the current cluster (ex: demo, lahsc, test)"
+    value: lahsc
+  - name: APP_VERSION
+    displayName: Project version
+    description: "Project deployed release"
+    value: "3.2.11"
+  - name: HELM_RELEASE
+    displayName: Helm repository release
+    description: "Branch or release name for the helm repository holding all charts"
+    value: devel
+  - name: ARGOCD_NS
+    displayName: The namespace where argocd server goes to
+    description: "Namespace to place argocd server to"
+    value: openshift-gitops

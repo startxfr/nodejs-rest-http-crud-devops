@@ -1,0 +1,225 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: fruitapp-app
+  annotations:
+    openshift.io/display-name: STARTX FruitApp Application stack
+    description: >
+      Deploy all component required to deploy the fruitapp demo application in a stable version.
+    iconClass: icon-openshift
+    tags: startx,demo,applicaiton,ci,cd,cicd,fruitapp
+    openshift.io/provider-display-name: STARTX
+    openshift.io/generated-by: startx
+  labels:
+    template: fruitapp-app
+    app.kubernetes.io/name: "fruitapp-app"
+    app.kubernetes.io/managed-by: startx
+message: |-
+  Full ${APP_NAME} application stack is deployed for the ${ENV_NAME} environment.
+  Application context is configured with the following characteristics :
+
+  namespace         : ${APP_NAME}-${ENV_NAME}
+  database
+    kind            : postgresql
+    image           : openshift/postgresql:${POSTGRESQL_VERSION}
+    hostname        : db
+    port            : 5432
+    database        : ${APP_NAME}
+    user            : ${APP_NAME}-${ENV_NAME}
+    password        : ${APP_NAME}-${ENV_NAME}-password
+  frontend
+    version         : ${APP_VERSION}
+    kind            : nodejs
+    image           : frontend:${APP_VERSION}
+    hostname        : frontend
+    port            : 8080
+labels:
+  template: fruitapp-app
+  app.kubernetes.io/managed-by: startx
+objects:
+- kind: Application
+  apiVersion: argoproj.io/v1alpha1
+  metadata:
+    name: ${APP_NAME}-${ENV_NAME}-shared
+    namespace: "${ARGOCD_NS}"
+    labels:  &basic_labels
+      app.startx.fr/scope: "${SCOPE}"
+      app.startx.fr/cluster: "${CLUSTER}"
+      app.startx.fr/component: "${APP_NAME}-${ENV_NAME}-shared"
+      app.kubernetes.io/name: "argoapp-${APP_NAME}-${ENV_NAME}-shared-application"
+      app.kubernetes.io/part-of: ${APP_NAME}-${ENV_NAME}
+      app.kubernetes.io/version: "${APP_VERSION}"
+      app.kubernetes.io/component: "${APP_NAME}-app"
+    annotations: &basic_annotations
+      openshift.io/generated-by: sxcm
+      # argocd.argoproj.io/manifest-generate-paths: .
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+  spec:
+    destination:
+      namespace: "${APP_NAME}-${ENV_NAME}"
+      server: 'https://kubernetes.default.svc'
+    info:
+      - name: teammail
+        value: dev@startx.fr
+    project: cluster-admin
+    source:
+      path: charts/example-fruitapp-shared/
+      repoURL: 'https://github.com/startxfr/helm-repository.git'
+      targetRevision: "${HELM_RELEASE}"
+      helm:
+        values: |
+          context:
+            scope: "${SCOPE}"
+            cluster: ${CLUSTER}
+            environment: ${ENV_NAME}
+            component: ${APP_NAME}
+            app: ${APP_NAME}
+            version: "${APP_VERSION}"
+          namespace: ${APP_NAME}-${ENV_NAME}
+          database:
+            enabled: true
+            name: ${APP_NAME}
+            user: ${APP_NAME}-${ENV_NAME}
+            password: ${APP_NAME}-${ENV_NAME}-password
+            storage_capacitity: ${VOLUME_CAPACITY}
+            storage_class: ${VOLUME_STORAGECLASS}
+            memory_limit: ${DB_MEMORY_LIMIT}
+            version: ${POSTGRESQL_VERSION}
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: false
+      syncOptions:
+        - CreateNamespace=false
+        - Validate=true
+      retry:
+        limit: 2
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 20s
+    ignoreDifferences:
+      - group: apps
+        kind: Deployment
+        jsonPointers: [ "/spec/template/spec/containers/0/image" ]
+- kind: Application
+  apiVersion: argoproj.io/v1alpha1
+  metadata:
+    name: ${APP_NAME}-${ENV_NAME}-frontend-${APP_VERSION}
+    namespace: "${ARGOCD_NS}"
+    labels:  &basic_labels
+      app.startx.fr/scope: "${SCOPE}"
+      app.startx.fr/cluster: "${CLUSTER}"
+      app.startx.fr/component: "${APP_NAME}-${ENV_NAME}-frontend-${APP_VERSION}"
+      app.kubernetes.io/name: "argoapp-${APP_NAME}-${ENV_NAME}-frontend-${APP_VERSION}-application"
+      app.kubernetes.io/part-of: ${APP_NAME}-${ENV_NAME}
+      app.kubernetes.io/version: "${APP_VERSION}"
+      app.kubernetes.io/component: "${APP_NAME}-app"
+    annotations: &basic_annotations
+      openshift.io/generated-by: sxcm
+      # argocd.argoproj.io/manifest-generate-paths: .
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+  spec:
+    destination:
+      namespace: "open"
+      server: 'https://kubernetes.default.svc'
+    info:
+      - name: teammail
+        value: dev@startx.fr
+    project: cluster-admin
+    source:
+      path: charts/example-fruitapp-app/
+      repoURL: 'https://github.com/startxfr/helm-repository.git'
+      targetRevision: "${HELM_RELEASE}"
+      helm:
+        values: |
+          context:
+            scope: "${SCOPE}"
+            cluster: ${CLUSTER}
+            environment: ${ENV_NAME}
+            component: ${APP_NAME}
+            app: ${APP_NAME}
+            version: "${APP_VERSION}"
+          namespace: ${APP_NAME}-${ENV_NAME}
+          frontend:
+            enabled: true
+            name: frontend
+            version: ${APP_VERSION}
+            replicas: ${APP_REPLICAS}
+            memory_limit: ${APP_MEMORY_LIMIT}
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: false
+      syncOptions:
+        - CreateNamespace=false
+        - Validate=true
+      retry:
+        limit: 2
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 20s
+    ignoreDifferences:
+      - group: apps
+        kind: Deployment
+        jsonPointers: [ "/spec/template/spec/containers/0/image" ]
+parameters:
+  - name: ENV_NAME
+    displayName: Environment name
+    description: "Name of the environment. Should be preprod or prod."
+    value: preprod
+  - name: SCOPE
+    displayName: Project scope
+    description: "Project scope (ex: sxv4)"
+    value: startx
+  - name: CLUSTER
+    displayName: Cluster name
+    description: "Name of the current cluster (ex: demo, lahsc, test)"
+    value: lahsc
+  - name: APP_NAME
+    displayName: Application name
+    description: "Name of the application. Used for namespace scope"
+    value: fruitapp
+  - name: APP_VERSION
+    displayName: Application version
+    description: "Version sequence to output from this pipeline"
+    value: v3.2.10
+  - name: APP_REPLICAS
+    displayName: Application replicas
+    description: "Number of pod replicas for the frontend service"
+    value: "2"
+  - name: POSTGRESQL_VERSION
+    displayName: PostgreSQL version
+    description: "Version of the postgresql backend. Could be 10-el7, 10-el8, 9.6-el8, 13-el8, 12-el8, 12-el7"
+    value: latest
+  - name: DB_MEMORY_LIMIT
+    displayName: Database memory limit
+    description: Maximum amount of memory the database can use.
+    value: 512Mi
+    required: true
+  - name: APP_MEMORY_LIMIT
+    displayName: Frontend memory limit
+    description: Maximum amount of memory the frontend can use.
+    value: 128Mi
+    required: true
+  - name: VOLUME_CAPACITY
+    displayName: Database storage capacity
+    description: 'Volume space provisionned for database stateful store, e.g. 512Mi, 2Gi.'
+    value: 1Gi
+    required: true
+  - name: VOLUME_STORAGECLASS
+    displayName: Database storage QOS
+    description: 'Storage class used for database store. Define the storage qos. See available storageclass. Example are startx-aws-fast-retain, startx-aws-generic-retain, gp2 or startx-aws-slow-retain'
+    value: startx-aws-generic-retain
+    required: true
+  - name: ARGOCD_NS
+    displayName: The namespace where argocd server goes to
+    description: "Namespace to place argocd server to"
+    value: openshift-gitops
+  - name: HELM_RELEASE
+    displayName: Helm repository release
+    description: "Branch or release name for the helm repository holding all charts"
+    value: devel

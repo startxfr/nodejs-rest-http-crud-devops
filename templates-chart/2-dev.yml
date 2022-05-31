@@ -1,0 +1,125 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: fruitapp-devel
+  annotations:
+    openshift.io/display-name: STARTX FruitApp demo (devel)
+    description: >
+      Deploy 4 namespaces (devel, ci, preprod and prod) and credentials to 
+      authorize the ci namespace to push images to the preprod and prod namespaces
+    tags: startx,demo,application,ci,cd,cicd,fruitapp
+    openshift.io/provider-display-name: STARTX
+    openshift.io/generated-by: startx
+  labels:
+    template: fruitapp-devel
+    app.kubernetes.io/name: "fruitapp-devel"
+    app.kubernetes.io/managed-by: startx
+message: |-
+  Full demo environment is deployed via `fruitapp-devel` argocd application with the following characteristics :
+
+  Developper namespace     : ${APP_NAME}-devel-${DEV_NAME}
+  Postgresql               : latest
+  NodeJS                   : latest
+labels:
+  template: fruitapp-devel
+  app.kubernetes.io/managed-by: startx
+objects: 
+- kind: Application
+  apiVersion: argoproj.io/v1alpha1
+  metadata:
+    name: ${APP_NAME}-app-devel-${DEV_NAME}
+    namespace: "${ARGOCD_NS}"
+    labels:  &basic_labels
+      app.startx.fr/scope: "${SCOPE}"
+      app.startx.fr/cluster: "${CLUSTER}"
+      app.startx.fr/component: "${APP_NAME}-devel"
+      app.kubernetes.io/name: "argoapp-${APP_NAME}-app-devel-${DEV_NAME}-application"
+      app.kubernetes.io/part-of: ${APP_NAME}-app-devel-${DEV_NAME}
+      app.kubernetes.io/version: "${VERSION}"
+      app.kubernetes.io/component: "${APP_NAME}-app"
+    annotations: &basic_annotations
+      openshift.io/generated-by: sxcm
+      # argocd.argoproj.io/manifest-generate-paths: .
+    finalizers:
+      - resources-finalizer.argocd.argoproj.io
+  spec:
+    destination:
+      namespace: "${ARGOCD_NS}"
+      server: 'https://kubernetes.default.svc'
+    info:
+      - name: teammail
+        value: dev@startx.fr
+    project: cluster-admin
+    source:
+      path: charts/example-fruitapp-project/
+      repoURL: 'https://github.com/startxfr/helm-repository.git'
+      targetRevision: "${HELM_RELEASE}"
+      helm:
+        values: |
+          context: &context
+            scope: "${SCOPE}"
+            cluster: ${CLUSTER}
+            environment: global
+            component: ${APP_NAME}
+            app: ${APP_NAME}
+            version: "${VERSION}"
+          devel_chain:
+            enabled: true
+            pg_version: latest
+            nodejs_version: latest
+          project_devel: 
+            enabled: false
+            project: 
+              enabled: true
+              type: project
+              name: ${APP_NAME}-devel-${DEV_NAME}
+          project_integration: 
+            enabled: false
+          project_preprod: 
+            enabled: false
+          project_prod: 
+            enabled: false
+          imagestreams:
+            enabled: false
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: false
+      syncOptions:
+        - CreateNamespace=false
+        - Validate=true
+      retry:
+        limit: 2
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 20s
+parameters:
+  - name: DEV_NAME
+    displayName: Developper name
+    description: "Name of the developper. Used for namespace scope"
+    value: christophe
+  - name: APP_NAME
+    displayName: Application name
+    description: "Name of the application. Used for namespace scope"
+    value: fruitapp
+  - name: ARGOCD_NS
+    displayName: The namespace where argocd server goes to
+    description: "Namespace to place argocd server to"
+    value: openshift-gitops
+  - name: SCOPE
+    displayName: Project scope
+    description: "Project scope (ex: sxv4)"
+    value: startx
+  - name: CLUSTER
+    displayName: Cluster name
+    description: "Name of the current cluster (ex: demo, lahsc, test)"
+    value: lahsc
+  - name: VERSION
+    displayName: Project version
+    description: "Project deployed release"
+    value: "3.2.11"
+  - name: HELM_RELEASE
+    displayName: Helm repository release
+    description: "Branch or release name for the helm repository holding all charts"
+    value: devel

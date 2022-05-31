@@ -1,7 +1,7 @@
 kind: Template
 apiVersion: template.openshift.io/v1
 metadata:
-  name: ${APP_NAME}-ci
+  name: fruitapp-ci
   annotations:
     openshift.io/display-name: STARTX FruitApp demo (CI)
     description: >
@@ -12,8 +12,8 @@ metadata:
     openshift.io/provider-display-name: STARTX
     openshift.io/generated-by: startx
   labels:
-    template: ${APP_NAME}-ci
-    app.kubernetes.io/name: "${APP_NAME}-ci"
+    template: fruitapp-ci
+    app.kubernetes.io/name: "fruitapp-ci"
     app.kubernetes.io/managed-by: startx
 message: |-
   Integration environment for application ${APP_NAME} is started. 
@@ -1392,7 +1392,7 @@ parameters:
   - name: APP_NAME
     displayName: Application name
     description: "Name of the application. Used for namespace scope"
-    value: fruitapp4
+    value: fruitapp
   - name: APP_VERSION
     displayName: Application version
     description: "Version sequence to output from this pipeline"
@@ -1416,4 +1416,4 @@ parameters:
   - name: GITHUB_TOKEN
     displayName: Github token
     description: "Token associated to the user and allowed to push to the repository"
-    value: "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"
+    value: "xxxxxxxxxxx"

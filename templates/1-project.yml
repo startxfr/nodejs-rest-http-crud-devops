@@ -17,7 +17,6 @@ metadata:
 message: |-
   Full demo environment is deployed with the following characteristics :
 
-  Developper namespace     : ${APP_NAME}-devel-${DEV_NAME}
   Integration namespace    : ${APP_NAME}-ci
   Pre-production namespace : ${APP_NAME}-preprod
   Production namespace     : ${APP_NAME}-prod
@@ -112,10 +111,10 @@ objects:
     namespace: ${APP_NAME}-preprod
   subjects:
     - kind: User
-      name: system:serviceaccounts:fruitapp-ci:pipeline
+      name: system:serviceaccounts:${APP_NAME}-ci:pipeline
     - kind: ServiceAccount
       name: pipeline
-      namespace: fruitapp-ci
+      namespace: ${APP_NAME}-ci
   roleRef:
     apiGroup: rbac.authorization.k8s.io
     kind: ClusterRole
@@ -127,10 +126,10 @@ objects:
     namespace: ${APP_NAME}-prod
   subjects:
     - kind: User
-      name: system:serviceaccounts:fruitapp-ci:pipeline
+      name: system:serviceaccounts:${APP_NAME}-ci:pipeline
     - kind: ServiceAccount
       name: pipeline
-      namespace: fruitapp-ci
+      namespace: ${APP_NAME}-ci
   roleRef:
     apiGroup: rbac.authorization.k8s.io
     kind: ClusterRole
@@ -143,7 +142,7 @@ parameters:
   - name: APP_NAME
     displayName: Application name
     description: "Name of the application. Used for namespace scope"
-    value: fruitapp4
+    value: fruitapp
 
       
 
