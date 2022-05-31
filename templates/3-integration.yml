@@ -1396,7 +1396,7 @@ parameters:
   - name: APP_VERSION
     displayName: Application version
     description: "Version sequence to output from this pipeline"
-    value: v3.2.10
+    value: v3.2.12
   - name: POSTGRESQL_VERSION
     displayName: PostgreSQL version
     description: "Version of the postgresql backend. Could be 10-el7, 10-el8, 9.6-el8, 13-el8, 12-el8, 12-el7"

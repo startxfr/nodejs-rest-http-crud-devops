@@ -91,12 +91,12 @@ Run the ```make prod``` command to create :
 
 ### Loadgen
 
-Run the ```make loadgen 1 v3.2.10 2``` command to create :
+Run the ```make loadgen 1 v3.2.12 2``` command to create :
 
 XXXX
 
 ### Loaddel
 
-Run the ```make loadgen 1 v3.2.10 2``` command to delete :
+Run the ```make loadgen 1 v3.2.12 2``` command to delete :
 
 XXXX

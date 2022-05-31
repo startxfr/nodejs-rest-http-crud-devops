@@ -59,7 +59,7 @@ function doDevel {
 # Apply the integration template
 function applyIntegration {
     local appname=${1:-fruitapp}
-    local appversion=${2:-v3.2.10}
+    local appversion=${2:-v3.2.12}
     echo "======== APPLY INTEGRATION ${appname}"
     doIntegration apply "${appname}" "${appversion}"
 }
@@ -67,7 +67,7 @@ function applyIntegration {
 # Delete the integration template
 function deleteIntegration {
     local appname=${1:-fruitapp}
-    local appversion=${2:-v3.2.10}
+    local appversion=${2:-v3.2.12}
     echo "======== DELETE INTEGRATION ${appname}"
     doIntegration delete "${appname}" "${appversion}"
 }
@@ -76,7 +76,7 @@ function deleteIntegration {
 function doIntegration {
     local action=${1:-apply}
     local appname=${2:-fruitapp}
-    local appversion=${3:-v3.2.10}
+    local appversion=${3:-v3.2.12}
     oc process \
     -f templates/3-integration.yml \
     -p APP_NAME="${appname}" \
@@ -87,7 +87,7 @@ function doIntegration {
 # Apply the deploy template
 function applyDeploy {
     local appname=${1:-fruitapp}
-    local appversion=${2:-v3.2.10}
+    local appversion=${2:-v3.2.12}
     local envname=${3:-preprod}
     local appreplicas=${4:-2}
     echo "======== APPLY DEPLOYMENT for ${appname} ${appversion} in ${envname}"
@@ -97,7 +97,7 @@ function applyDeploy {
 # Delete the deploy template
 function deleteDeploy {
     local appname=${1:-fruitapp}
-    local appversion=${2:-v3.2.10}
+    local appversion=${2:-v3.2.12}
     local envname=${3:-preprod}
     local appreplicas=${4:-2}
     echo "======== DELETE DEPLOYMENT for ${appname} ${appversion} in ${envname}"
@@ -108,7 +108,7 @@ function deleteDeploy {
 function doDeploy {
     local action=${1:-apply}
     local appname=${2:-fruitapp}
-    local appversion=${3:-v3.2.10}
+    local appversion=${3:-v3.2.12}
     local envname=${4:-preprod}
     local appreplicas=${5:-2}
     oc process \
@@ -123,7 +123,7 @@ function doDeploy {
 # Apply the loadgen loop
 function loadgen {
   local nbapp=${1:-1}
-  local appversion=${2:-v3.2.10}
+  local appversion=${2:-v3.2.12}
   local nbrep=${3:-2}
   for start in $(seq 1 1 "${nbapp}")
   do
@@ -139,7 +139,7 @@ function loadgen {
 # Apply the loaddel loop
 function loaddel {
   local nbapp=${1:-1}
-  local appversion=${2:-v3.2.10}
+  local appversion=${2:-v3.2.12}
   local nbrep=${3:-2}
   for start in $(seq 1 1 "${nbapp}")
   do

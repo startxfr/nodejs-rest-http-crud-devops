@@ -50,7 +50,7 @@ parameters:
   - name: VERSION
     displayName: Project version
     description: "Project deployed release"
-    value: "3.2.11"
+    value: "3.2.12"
   - name: HELM_RELEASE
     displayName: Helm repository release
     description: "Branch or release name for the helm repository holding all charts"

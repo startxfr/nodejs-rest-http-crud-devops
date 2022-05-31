@@ -35,28 +35,28 @@ devel-demo:
 # integration-demo action
 # SHELL:=/bin/bash
 integration-demo: 
-	@bash -c "source .lib/core && applyIntegration fruitapp v3.2.10"
+	@bash -c "source .lib/core && applyIntegration fruitapp v3.2.12"
 # preprod-demo action
 # SHELL:=/bin/bash
 preprod-demo: 
-	@bash -c "source .lib/core && applyDeploy fruitapp v3.2.10 preprod 2"
+	@bash -c "source .lib/core && applyDeploy fruitapp v3.2.12 preprod 2"
 # prod-demo action
 # SHELL:=/bin/bash
 prod-demo: 
-	@bash -c "source .lib/core && applyDeploy fruitapp v3.2.10 prod 3"
+	@bash -c "source .lib/core && applyDeploy fruitapp v3.2.12 prod 3"
 # loadgen-demo action
 # SHELL:=/bin/bash
 loadgen-demo: 
-	@bash -c "source .lib/core && loadgen 1 v3.2.10 2"
+	@bash -c "source .lib/core && loadgen 1 v3.2.12 2"
 # loadgen-big action
 # SHELL:=/bin/bash
 loadgen-big: 
-	@bash -c "source .lib/core && loadgen 10 v3.2.10 3"
+	@bash -c "source .lib/core && loadgen 10 v3.2.12 3"
 # loaddel-demo action
 # SHELL:=/bin/bash
 loaddel-demo: 
-	@bash -c "source .lib/core && loaddel 1 v3.2.10 2"
+	@bash -c "source .lib/core && loaddel 1 v3.2.12 2"
 # loaddel-big action
 # SHELL:=/bin/bash
 loaddel-big: 
-	@bash -c "source .lib/core && loaddel 10 v3.2.10 3"
+	@bash -c "source .lib/core && loaddel 10 v3.2.12 3"

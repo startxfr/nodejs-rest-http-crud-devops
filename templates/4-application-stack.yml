@@ -380,7 +380,7 @@ parameters:
   - name: APP_VERSION
     displayName: Application version
     description: "Version sequence to output from this pipeline"
-    value: v3.2.11
+    value: v3.2.12
   - name: APP_REPLICAS
     displayName: Application replicas
     description: "Number of pod replicas for the frontend service"
